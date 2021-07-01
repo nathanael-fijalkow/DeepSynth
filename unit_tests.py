@@ -265,7 +265,7 @@ class TestSum(unittest.TestCase):
 
     def test_sampling(self):
         """
-        Check if sampling samples according to the correct probabilities using a chi_square test
+        Check if the sampling algorithm samples according to the correct probabilities using a chi_square test
         """
         K = 20_000  # number of samples from the L-th first programs
         L = 50  # we test the probabilities of the first L programs are ok
@@ -310,7 +310,7 @@ class TestSum(unittest.TestCase):
 
     def test_sqrt_sampling(self):
         """
-        Check if sqrt_sampling samples according to the correct probabilities
+        Check if sqrt_sampling algorithm samples according to the correct probabilities
         """
         K = 300_000  # number of samples from the L-th first programs
         L = 50  # we test the probabilities of the first L programs are ok

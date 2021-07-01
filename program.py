@@ -1,6 +1,8 @@
 from type_system import *
 from cons_list import index
 
+import logging
+
 # dictionary { number of environment : value }
 # environment: a cons list
 # list = None | (value, list)
@@ -82,30 +84,12 @@ class Program:
     def __hash__(self):
         return self.hash
 
-    # def compute_hash(self):
-    #     if isinstance(self, Function):
-    #         return hash(
-    #             # self.function.primitive + str([id(arg) for arg in self.arguments])
-    #             hash(self.function) + str([id(arg) for arg in self.arguments])
-    #         )
-    #     if isinstance(self, Variable):
-    #         return self.variable
-    #     if isinstance(self, (Lambda, New)):
-    #         # This has never been tested with our current grammars
-    #         return hash(str(self.body)) + self.type.hash
-    #     if isinstance(self, BasicPrimitive):
-    #         return hash(self.primitive) + self.type.hash
-    #     if self == None:
-    #         return 123891  # random int to avoid a collision with self.variable
-    #     assert False
-
-
 class Variable(Program):
     def __init__(self, variable, type_=UnknownType(), probability={}):
         # self.variable is a natural number
-        assert isinstance(variable, int)
+        # assert isinstance(variable, int)
         self.variable = variable
-        assert isinstance(type_, Type)
+        # assert isinstance(type_, Type)
         self.type = type_
         self.hash = variable
 
@@ -117,20 +101,23 @@ class Variable(Program):
 
     def eval(self, dsl, environment, i):
         if i in self.evaluation:
-            # print("already evaluated")
+            # logging.debug('Already evaluated')
             return self.evaluation[i]
-        # print("not yet evaluated")
+        # logging.debug('Not yet evaluated')
         try:
-            return index(environment, self.variable)
+            result = index(environment, self.variable)
+            self.evaluation[i] = result
+            return result
         except (IndexError, ValueError, TypeError):
+            self.evaluation[i] = None
             return None
 
 
 class Function(Program):
     def __init__(self, function, arguments, type_=UnknownType(), probability={}):
-        assert isinstance(function, Program)
+        # assert isinstance(function, Program)
         self.function = function
-        assert isinstance(arguments, list)
+        # assert isinstance(arguments, list)
         self.arguments = arguments
         self.type = type_
         self.hash = hash(tuple([arg.hash for arg in self.arguments] + [self.function.hash]))
@@ -149,7 +136,9 @@ class Function(Program):
 
     def eval(self, dsl, environment, i):
         if i in self.evaluation:
+            # logging.debug('Already evaluated')
             return self.evaluation[i]
+        # logging.debug('Not yet evaluated')
         try:
             if len(self.arguments) == 0:
                 return self.function.eval(dsl, environment, i)
@@ -161,16 +150,18 @@ class Function(Program):
                 result = self.function.eval(dsl, environment, i)
                 for evaluated_arg in evaluated_arguments:
                     result = result(evaluated_arg)
+                self.evaluation[i] = result
                 return result
         except (IndexError, ValueError, TypeError):
+            self.evaluation[i] = None
             return None
 
 
 class Lambda(Program):
     def __init__(self, body, type_=UnknownType(), probability={}):
-        assert isinstance(body, Program)
+        # assert isinstance(body, Program)
         self.body = body
-        assert isinstance(type_, Type)
+        # assert isinstance(type_, Type)
         self.type = type_
         self.hash = hash(94135 + body.hash)
 
@@ -183,18 +174,23 @@ class Lambda(Program):
 
     def eval(self, dsl, environment, i):
         if i in self.evaluation:
+            # logging.debug('Already evaluated')
             return self.evaluation[i]
+        # logging.debug('Not yet evaluated')
         try:
-            return lambda x: self.body.eval(dsl, (x, environment), i)
+            result = lambda x: self.body.eval(dsl, (x, environment), i)
+            self.evaluation[i] = result
+            return result
         except (IndexError, ValueError, TypeError):
+            self.evaluation[i] = None
             return None
 
 
 class BasicPrimitive(Program):
     def __init__(self, primitive, type_=UnknownType(), probability={}):
-        assert isinstance(primitive, str)
+        # assert isinstance(primitive, str)
         self.primitive = primitive
-        assert isinstance(type_, Type)
+        # assert isinstance(type_, Type)
         self.type = type_
         self.hash = hash(primitive) + self.type.hash
 
@@ -212,7 +208,7 @@ class New(Program):
     def __init__(self, body, type_=UnknownType(), probability={}):
         self.body = body
         self.type = type_
-        self.hash = hash(783712 + body.hash)
+        self.hash = hash(783712 + body.hash) + type_.hash
 
         self.probability = probability
         self.evaluation = {}
@@ -222,10 +218,15 @@ class New(Program):
 
     def eval(self, dsl, environment, i):
         if i in self.evaluation:
+            # logging.debug('Already evaluated')
             return self.evaluation[i]
+        # logging.debug('Not yet evaluated')
         try:
-            return self.body.eval(dsl, environment, i)
+            result = self.body.eval(dsl, environment, i)
+            self.evaluation[i] = result
+            return result
         except (IndexError, ValueError, TypeError):
+            self.evaluation[i] = None
             return None
 
 

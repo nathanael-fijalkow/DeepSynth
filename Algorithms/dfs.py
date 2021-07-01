@@ -1,4 +1,4 @@
-from pcfg import PCFG
+from dreamcoder.PCFG.pcfg import PCFG
 
 from collections import deque 
 import time 
@@ -23,9 +23,9 @@ def dfs(G : PCFG):
         else:
             S = non_terminals.pop()
             for P in G.list_derivations[S]:
-                args_F, w = G.rules[P]
+                args_P, w = G.rules[S][P]
                 new_partial_program = (P, partial_program)
                 new_non_terminals = non_terminals.copy()
-                for arg in args_F:
+                for arg in args_P:
                     new_non_terminals.append(arg)
                 frontier.append((new_partial_program, new_non_terminals))

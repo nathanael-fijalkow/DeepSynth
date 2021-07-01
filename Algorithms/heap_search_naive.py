@@ -7,24 +7,12 @@ from program import Program, Function, Variable
 from pcfg import PCFG
 
 
-def heap_search(G: PCFG):
-    H = heap_search_object(G)
+def heap_search_naive(G: PCFG):
+    H = heap_search_object_naive(G)
     return H.generator()
 
-class heap_search_object:
-    def return_unique(self, P):
-        """
-        ensures that if a program appears in several heaps,
-        it is represented by the same object,
-        so we do not evaluate it several times
-        """
-        hash_P = P.hash
-        if hash_P in self.hash_table_global:
-            return self.hash_table_global[hash_P]
-        else:
-            self.hash_table_global[hash_P] = P
-            return P
 
+class heap_search_object_naive:
     def __init__(self, G: PCFG):
         self.current = None
 
@@ -46,10 +34,6 @@ class heap_search_object:
         # ever added to the heap for S
         self.hash_table_program = {S: set() for S in self.symbols}
 
-        # self.hash_table_global[hash] = P maps
-        # hashes to programs for all programs ever added to some heap
-        self.hash_table_global = {}
-
         # Initialisation heaps
         ## 1. add P(max(S1),max(S2), ...) to self.heaps[S] for all S -> P(S1, S2, ...)
         for S in reversed(self.rules):
@@ -62,10 +46,6 @@ class heap_search_object:
                 assert hash_program not in self.hash_table_program[S]
 
                 self.hash_table_program[S].add(hash_program)
-
-                # we assume that the programs from max_probability
-                # are represented by the same object
-                self.hash_table_global[hash_program] = program
 
                 # print("adding to the heap", program, program.probability[S])
                 heappush(
@@ -128,7 +108,6 @@ class heap_search_object:
                     new_program = Function(
                         F, new_arguments, type_=succ.type, probability={}
                     )
-                    new_program = self.return_unique(new_program)
                     hash_new_program = new_program.hash
 
                     if hash_new_program not in self.hash_table_program[S]:

@@ -24,10 +24,11 @@ class DSL:
         self.semantics = {}
 
         for p in primitive_types:
-            if format(p) in semantics:
-                self.semantics[p] = semantics[format(p)]
+            formatted_p = format(p)
+            if formatted_p in semantics:
+                self.semantics[formatted_p] = semantics[formatted_p]
                 P = BasicPrimitive(
-                    primitive=format(p), type_=primitive_types[p], probability={}
+                    primitive=formatted_p, type_=primitive_types[p], probability={}
                 )
                 self.list_primitives.append(P)
             else:

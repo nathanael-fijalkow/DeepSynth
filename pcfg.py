@@ -33,8 +33,16 @@ class PCFG:
         self.rules = rules
         self.max_program_depth = max_program_depth
 
+        self.hash = hash(format(rules))
+
         self.remove_non_productive(max_program_depth)
         self.remove_non_reachable(max_program_depth)
+
+        for S in self.rules:
+            s = sum([self.rules[S][P][1] for P in self.rules[S]])
+            for P in self.rules[S]:
+                args_P, w = self.rules[S][P]
+                self.rules[S][P] = (args_P, w / s)
 
         self.hash_table_programs = {}
         self.max_probability = {}
@@ -56,11 +64,10 @@ class PCFG:
         ensures that if a program appears in several rules,
         it is represented by the same object
         """
-        hash_P = P.__hash__()
-        if hash_P in self.hash_table_programs:
-            return self.hash_table_programs[hash_P]
+        if P.hash in self.hash_table_programs:
+            return self.hash_table_programs[P.hash]
         else:
-            self.hash_table_programs[hash_P] = P
+            self.hash_table_programs[P.hash] = P
             return P
 
     def remove_non_productive(self, max_program_depth=4):
@@ -119,16 +126,12 @@ class PCFG:
             for P in self.rules[S]:
                 args_P, w = self.rules[S][P]
                 P_unique = self.return_unique(P)
-                # we want to have a unique representation of the program
-                # so that it is evaluated only once
-                # the same program may appear in different places of max_probability
-                # with different probabilities
 
                 if len(args_P) == 0:
                     self.max_probability[(S, P)] = P_unique
-                    P_unique.probability[(id(self), S)] = w
+                    P_unique.probability[(self.__hash__(), S)] = w
                     assert P_unique.probability[
-                        (id(self), S)
+                        (self.__hash__(), S)
                     ] == self.probability_program(S, P_unique)
 
                 else:
@@ -141,23 +144,19 @@ class PCFG:
                     P_unique = self.return_unique(new_program)
                     probability = w
                     for arg in args_P:
-                        probability *= self.max_probability[arg].probability[
-                            (id(self), arg)
-                        ]
+                        probability *= self.max_probability[arg].probability[(self.__hash__(), arg)]
                     self.max_probability[(S, P)] = P_unique
-                    assert (id(self), S) not in P_unique.probability
-                    P_unique.probability[(id(self), S)] = probability
-                    assert P_unique.probability[
-                        (id(self), S)
-                    ] == self.probability_program(S, P_unique)
+                    assert (self.__hash__(), S) not in P_unique.probability
+                    P_unique.probability[(self.__hash__(), S)] = probability
+                    assert probability == self.probability_program(S, P_unique)
 
                 if (
-                    self.max_probability[(S, P)].probability[(id(self), S)]
+                    self.max_probability[(S, P)].probability[(self.__hash__(), S)]
                     > best_probability
                 ):
                     best_program = self.max_probability[(S, P)]
                     best_probability = self.max_probability[(S, P)].probability[
-                        (id(self), S)
+                        (self.__hash__(), S)
                     ]
 
             assert best_probability > 0
@@ -178,7 +177,7 @@ class PCFG:
         }
 
     def __hash__(self):
-        return id(self)
+        return self.hash
 
     def __repr__(self):
         s = "Print a PCFG\n"
