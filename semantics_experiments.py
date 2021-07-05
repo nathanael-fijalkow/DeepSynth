@@ -4,8 +4,6 @@ from cfg import *
 from pcfg import *
 from dsl import *
 
-from dreamcoder.grammar import *
-
 # Import algorithms
 from Algorithms.heap_search import heap_search
 from Algorithms.heap_search_naive import heap_search_naive
@@ -114,8 +112,8 @@ def run_algorithm(dsl, examples, pcfg, algorithm, name_algo, param):
     return None, timeout, timeout, nb_programs
 
 list_algorithms = [
-    # (heap_search, 'heap search', {}), 
-    (heap_search_naive, 'heap search naive', {}), 
+    (heap_search, 'heap search', {}), 
+    # (heap_search_naive, 'heap search naive', {}), 
     # (sqrt_sampling, 'SQRT', {}), 
     # (a_star, 'A*', {}),
     # (threshold_search, 'threshold', {'initial_threshold' : 0.0001, 'scale_factor' : 10}), 

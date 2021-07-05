@@ -1,4 +1,4 @@
-from dreamcoder.PCFG.pcfg import PCFG
+from pcfg import PCFG
 
 from collections import deque 
 import time 
