@@ -10,6 +10,8 @@ import logging
 # such that P.probability[S] is the probability that P is generated
 # from the non-terminal S when the underlying PCFG is G.
 
+# make sure hash is deterministic
+PYTHONHASHSEED = 0
 
 class Program:
     """
@@ -112,6 +114,12 @@ class Variable(Program):
             self.evaluation[i] = None
             return None
 
+    def eval_naive(self, dsl, environment):
+        try:
+            result = index(environment, self.variable)
+            return result
+        except (IndexError, ValueError, TypeError):
+            return None
 
 class Function(Program):
     def __init__(self, function, arguments, type_=UnknownType(), probability={}):
@@ -156,6 +164,21 @@ class Function(Program):
             self.evaluation[i] = None
             return None
 
+    def eval_naive(self, dsl, environment):
+        try:
+            if len(self.arguments) == 0:
+                return self.function.eval_naive(dsl, environment)
+            else:
+                evaluated_arguments = []
+                for j in range(len(self.arguments)):
+                    e = self.arguments[j].eval_naive(dsl, environment)
+                    evaluated_arguments.append(e)
+                result = self.function.eval_naive(dsl, environment)
+                for evaluated_arg in evaluated_arguments:
+                    result = result(evaluated_arg)
+                return result
+        except (IndexError, ValueError, TypeError):
+            return None
 
 class Lambda(Program):
     def __init__(self, body, type_=UnknownType(), probability={}):
@@ -185,6 +208,12 @@ class Lambda(Program):
             self.evaluation[i] = None
             return None
 
+    def eval_naive(self, dsl, environment):
+        try:
+            result = lambda x: self.body.eval_naive(dsl, (x, environment))
+            return result
+        except (IndexError, ValueError, TypeError):
+            return None
 
 class BasicPrimitive(Program):
     def __init__(self, primitive, type_=UnknownType(), probability={}):
@@ -203,6 +232,8 @@ class BasicPrimitive(Program):
     def eval(self, dsl, environment, i):
         return dsl.semantics[self.primitive]
 
+    def eval_naive(self, dsl, environment):
+        return dsl.semantics[self.primitive]
 
 class New(Program):
     def __init__(self, body, type_=UnknownType(), probability={}):
@@ -229,6 +260,12 @@ class New(Program):
             self.evaluation[i] = None
             return None
 
+    def eval_naive(self, dsl, environment):
+        try:
+            result = self.body.eval_naive(dsl, environment)
+            return result
+        except (IndexError, ValueError, TypeError):
+            return None
 
 def reconstruct_from_list(program_as_list, target_type):
     if len(program_as_list) == 1:
@@ -246,7 +283,6 @@ def reconstruct_from_list(program_as_list, target_type):
         if isinstance(P, Variable):
             return P
         assert False
-
 
 def reconstruct_from_compressed(program, target_type):
     program_as_list = []

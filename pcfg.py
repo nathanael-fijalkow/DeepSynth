@@ -7,6 +7,9 @@ import vose
 from type_system import *
 from program import Program, Function, Variable, BasicPrimitive, New
 
+# make sure hash is deterministic
+PYTHONHASHSEED = 0
+
 class PCFG:
     """
     Object that represents a probabilistic context-free grammar
