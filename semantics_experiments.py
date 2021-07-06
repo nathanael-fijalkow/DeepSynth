@@ -1,10 +1,16 @@
+from collections import deque
+import pickle
+from math import exp
+
+import logging
+import argparse
+
 from type_system import *
 from program import *
 from cfg import *
 from pcfg import *
 from dsl import *
 
-# Import algorithms
 from Algorithms.heap_search import heap_search
 from Algorithms.heap_search_naive import heap_search_naive
 from Algorithms.a_star import a_star
@@ -13,14 +19,6 @@ from Algorithms.dfs import dfs
 from Algorithms.bfs import bfs
 from Algorithms.sort_and_add import sort_and_add
 from Algorithms.sqrt_sampling import sqrt_sampling
-
-from collections import deque
-import pickle
-from math import exp
-
-
-import logging
-import argparse
 
 logging_levels = {0:logging.INFO, 1:logging.DEBUG}
 
