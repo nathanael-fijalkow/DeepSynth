@@ -1,34 +1,85 @@
-class ProgramAsList:
-    def evaluation(self, dsl, environment):
-        (P, sub_program) = self
-        if sub_program: 
-           pass 
+from program import BasicPrimitive, Function, Lambda, New, Variable
+
+
+# # USEFUL if a TOP DOWN approach is used in evaluation_from_compressed
+# def evaluation_from_list(program_as_list, dsl, environment, target_type):
+#     if len(program_as_list) == 1:
+#         return program_as_list.pop().eval_naive(dsl, environment)
+#     else:
+#         P = program_as_list.pop()
+#         if isinstance(P, (New, BasicPrimitive)):
+#             try:
+#                 list_arguments = P.type.ends_with(target_type)
+#                 evaluated_arguments = [None] * len(list_arguments)
+#                 for i in range(len(list_arguments)):
+#                     evaluated_arguments[
+#                         len(list_arguments) - i - 1
+#                     ] = evaluation_from_list(
+#                         program_as_list,
+#                         dsl,
+#                         environment,
+#                         list_arguments[len(list_arguments) - i - 1],
+#                     )
+#                 evaluation = P.eval_naive(dsl, environment)
+#                 for evaluated_arg in evaluated_arguments:
+#                     evaluation = evaluation(evaluated_arg)
+#                 return evaluation
+#             except (IndexError, ValueError, TypeError):
+#                 return None
+
+#         if isinstance(P, Variable):
+#             return P.eval_naive(dsl, environment)
+#         assert False
+
+
+def evaluation_from_compressed(program_compressed, dsl, environment, target_type):
+    # # TOP DOWN approach
+    # program_as_list = []
+    # list_from_compressed(program_compressed, program_as_list)
+    # program_as_list.reverse()
+    # return evaluation_from_list(program_as_list, dsl, environment, target_type)
+
+    # BOTTOM UP approach
+    stack = []
+    (P, sub_program) = program_compressed
+
+    while P:
+
+        if isinstance(P, Variable):
+            stack.append(P.eval_naive(dsl, environment))
+
+        if isinstance(P, (New, BasicPrimitive)):
+            try:
+                list_arguments = P.type.ends_with(target_type)
+                evaluated_arguments = []
+                evaluation = P.eval_naive(dsl, environment)
+
+                for _ in range(len(list_arguments)):
+                    evaluated_arguments.append(stack.pop())
+                evaluated_arguments.reverse()
+                for evaluated_arg in evaluated_arguments:
+                    evaluation = evaluation(evaluated_arg)
+                stack.append(evaluation)
+            except (IndexError, ValueError, TypeError):
+                stack.append(None)
+
+        if isinstance(P, Lambda):
+            eval_lambda = P.eval_naive(dsl, environment)
+            arg_lambda = stack.pop()
+            stack.append(eval_lambda(arg_lambda))
+
+        if sub_program:
+            (P, sub_program) = sub_program[0], sub_program[1]
         else:
-           P.eval(stack)
+            P = None
 
-P
-[2,3]
-environment = ([2,3], None)
-evaluation(P, environment)
+    return stack.pop()
 
-new_environment = (new_value, environment)
 
-# (1, (var0, ((lambda (map (lambda ((+ var0) var1)))), None)))
+# TO DO!
+# # Once we have a good JSON format for PCFG and we can test semantic_experiments
 
-TRANSLATE : obj vers int vers obj
 
-TRANSLATE obj 4 =
-Function(TRANSLATE, [obj, 4])
-
-(TRANSLATE obj) 4 =
-Function(Function(TRANSLATE,[obj]), [4])
-
-obj 4 TRANSLATE
-(4, (obj, TRANSLATE))
-
-TO DO!
-# Once we have a good JSON format for PCFG and we can test semantic_experiments
-        
 def reconstruct_from_list(program_as_list, target_type):
     if len(program_as_list) == 1:
         return program_as_list.pop()
@@ -46,10 +97,12 @@ def reconstruct_from_list(program_as_list, target_type):
             return P
         assert False
 
+
 def reconstruct_from_compressed(program, target_type):
     program_as_list = []
     list_from_compressed(program, program_as_list)
     program_as_list.reverse()
+
     return reconstruct_from_list(program_as_list, target_type)
 
 

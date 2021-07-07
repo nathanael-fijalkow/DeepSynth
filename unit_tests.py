@@ -11,6 +11,7 @@ from Algorithms.heap_search import heap_search
 from Algorithms.a_star import a_star
 from Algorithms.sqrt_sampling import sqrt_sampling
 from Algorithms.threshold_search import bounded_threshold
+from program_as_list import evaluation_from_compressed
 
 
 class TestSum(unittest.TestCase):
@@ -168,7 +169,9 @@ class TestSum(unittest.TestCase):
         current_probability = 1
         for i in range(N):
             program = next(gen_heap_search)
-            new_probability = program.probability[(deepcoder_PCFG.__hash__(), deepcoder_PCFG.start)]
+            new_probability = program.probability[
+                (deepcoder_PCFG.__hash__(), deepcoder_PCFG.start)
+            ]
             self.assertTrue(
                 program.probability[(deepcoder_PCFG.__hash__(), deepcoder_PCFG.start)]
                 == deepcoder_PCFG.probability_program(deepcoder_PCFG.start, program)
@@ -181,7 +184,10 @@ class TestSum(unittest.TestCase):
 
         while len(seen_sampling) < K:
             program = next(gen_sampling)
-            if deepcoder_PCFG.probability_program(deepcoder_PCFG.start, program) >= min_proba:
+            if (
+                deepcoder_PCFG.probability_program(deepcoder_PCFG.start, program)
+                >= min_proba
+            ):
                 seen_sampling.add(str(program))
 
         diff = seen_sampling - seen_heaps
@@ -208,7 +214,9 @@ class TestSum(unittest.TestCase):
         for i in range(N):
             program = next(gen_a_star)
             program = reconstruct_from_compressed(program, type_request.returns())
-            new_probability = deepcoder_PCFG.probability_program(deepcoder_PCFG.start, program)
+            new_probability = deepcoder_PCFG.probability_program(
+                deepcoder_PCFG.start, program
+            )
             self.assertLessEqual(new_probability, current_probability + 10e-15)
             current_probability = new_probability
             seen_astar.add(str(program))
@@ -217,7 +225,10 @@ class TestSum(unittest.TestCase):
 
         while len(seen_sampling) < K:
             program = next(gen_sampling)
-            if deepcoder_PCFG.probability_program(deepcoder_PCFG.start, program) >= min_proba:
+            if (
+                deepcoder_PCFG.probability_program(deepcoder_PCFG.start, program)
+                >= min_proba
+            ):
                 seen_sampling.add(str(program))
 
         diff = seen_sampling - seen_astar
@@ -241,7 +252,9 @@ class TestSum(unittest.TestCase):
             try:
                 program = next(gen_threshold)
                 program = reconstruct_from_compressed(program, type_request.returns())
-                proba_program = deepcoder_PCFG.probability_program(deepcoder_PCFG.start, program)
+                proba_program = deepcoder_PCFG.probability_program(
+                    deepcoder_PCFG.start, program
+                )
                 self.assertLessEqual(threshold, proba_program)
                 seen_threshold.add(
                     str(program)
@@ -275,7 +288,9 @@ class TestSum(unittest.TestCase):
         type_request = Arrow(List(INT), List(INT))
         deepcoder_PCFG = deepcoder.DSL_to_Random_PCFG(type_request, alpha=0.7)
 
-        gen_heap_search = heap_search(deepcoder_PCFG)  # to generate the L first programs
+        gen_heap_search = heap_search(
+            deepcoder_PCFG
+        )  # to generate the L first programs
         gen_sampling = deepcoder_PCFG.sampling()  # generator for sampling
 
         count = {}
@@ -312,21 +327,26 @@ class TestSum(unittest.TestCase):
         """
         Check if sqrt_sampling algorithm samples according to the correct probabilities
         """
-        K = 300_000  # number of samples from the L-th first programs
+        K = 1_000_000  # number of samples from the L-th first programs
         L = 50  # we test the probabilities of the first L programs are ok
 
         deepcoder = dsl.DSL(semantics, primitive_types)
         type_request = Arrow(List(INT), List(INT))
         deepcoder_PCFG = deepcoder.DSL_to_Random_PCFG(type_request, alpha=0.6)
 
-        gen_heap_search = heap_search(deepcoder_PCFG)  # to generate the L first programs
+        gen_heap_search = heap_search(
+            deepcoder_PCFG
+        )  # to generate the L first programs
         gen_sqrt_sampling = sqrt_sampling(deepcoder_PCFG)  # generator for sqrt sampling
 
         count = {}
         for _ in range(L):
             program = next(gen_heap_search)
             count[str(program)] = [
-                K * sqrt(deepcoder_PCFG.probability_program(deepcoder_PCFG.start, program)),
+                K
+                * sqrt(
+                    deepcoder_PCFG.probability_program(deepcoder_PCFG.start, program)
+                ),
                 0,
             ]
         i = 0
@@ -343,6 +363,32 @@ class TestSum(unittest.TestCase):
         random_ratios = random.sample(ratios, 5)
         for r in random_ratios:
             self.assertAlmostEqual(ratios[0], r, 1)
+
+    def test_evaluation_from_compressed(self):
+        """
+        Check if evaluation_from_compressed evaluates correctly the programs
+        """
+        N = 20_000  # we test against the first N programs
+
+        deepcoder = dsl.DSL(semantics, primitive_types)
+        type_request = Arrow(List(INT), List(INT))
+        deepcoder_PCFG = deepcoder.DSL_to_Random_PCFG(type_request, alpha=0.6)
+
+        gen_a_star = a_star(deepcoder_PCFG)
+
+        environment = ([2, 3, 1], ([1, 4], None))
+
+        for i in range(N):
+            program_compressed = next(gen_a_star)
+            program = reconstruct_from_compressed(
+                program_compressed, type_request.returns()
+            )
+            program_as_list = []
+            eval_from_compressed = evaluation_from_compressed(
+                program_compressed, deepcoder, environment, type_request.returns()
+            )
+            eval_from_program = program.eval_naive(deepcoder, environment)
+            self.assertEqual(eval_from_compressed, eval_from_program)
 
 
 if __name__ == "__main__":
