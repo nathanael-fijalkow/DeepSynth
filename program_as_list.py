@@ -45,9 +45,6 @@ def evaluation_from_compressed(program_compressed, dsl, environment, target_type
 
     while P:
 
-        if isinstance(P, Variable):
-            stack.append(P.eval_naive(dsl, environment))
-
         if isinstance(P, (New, BasicPrimitive)):
             try:
                 list_arguments = P.type.ends_with(target_type)
@@ -63,7 +60,10 @@ def evaluation_from_compressed(program_compressed, dsl, environment, target_type
             except (IndexError, ValueError, TypeError):
                 stack.append(None)
 
-        if isinstance(P, Lambda):
+        elif isinstance(P, Variable):
+            stack.append(P.eval_naive(dsl, environment))
+
+        elif isinstance(P, Lambda):
             eval_lambda = P.eval_naive(dsl, environment)
             arg_lambda = stack.pop()
             stack.append(eval_lambda(arg_lambda))

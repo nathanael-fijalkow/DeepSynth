@@ -215,8 +215,6 @@ class PCFG:
         """
         Compute the probability of a program P generated from the non-terminal S
         """
-        if isinstance(P, (Variable, BasicPrimitive, New)):
-            return self.rules[S][P][1]
         if isinstance(P, Function):
             F = P.function
             args_P = P.arguments
@@ -224,4 +222,7 @@ class PCFG:
             for i, arg in enumerate(args_P):
                 probability *= self.probability_program(self.rules[S][F][0][i], arg)
             return probability
+
+        if isinstance(P, (Variable, BasicPrimitive, New)):
+            return self.rules[S][P][1]
         assert False

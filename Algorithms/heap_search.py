@@ -11,6 +11,7 @@ def heap_search(G: PCFG):
     H = heap_search_object(G)
     return H.generator()
 
+
 class heap_search_object:
     def return_unique(self, P):
         """
@@ -105,14 +106,11 @@ class heap_search_object:
             _, succ = heappop(self.heaps[S])
             # print("found succ in the heap", S, program, succ)
         except:
-            return # the heap is empty: there are no successors from S
+            return  # the heap is empty: there are no successors from S
 
         self.succ[S][hash_program] = succ  # we store the succesor
 
         # now we need to add all potential successors of succ in heaps[S]
-        if isinstance(succ, Variable):
-            return succ  # if succ is a variable, there is no successor so we stop here
-
         if isinstance(succ, Function):
             F = succ.function
 
@@ -138,5 +136,8 @@ class heap_search_object:
                             probability *= arg.probability[(self.G.hash, S3)]
                         heappush(self.heaps[S], (-probability, new_program))
                         new_program.probability[(self.G.hash, S)] = probability
+
+        if isinstance(succ, Variable):
+            return succ  # if succ is a variable, there is no successor so we stop here
 
         return succ
