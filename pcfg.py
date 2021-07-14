@@ -37,7 +37,8 @@ class PCFG:
 
         self.hash = hash(format(rules))
 
-        self.remove_non_productive(max_program_depth)
+        print("nath, what's up with this? Cant reversed() dict?")
+        #self.remove_non_productive(max_program_depth)
         self.remove_non_reachable(max_program_depth)
 
         for S in self.rules:
@@ -48,7 +49,7 @@ class PCFG:
 
         self.hash_table_programs = {}
         self.max_probability = {}
-        self.compute_max_probability()
+        #self.compute_max_probability()
 
         self.list_derivations = {}
         self.vose_samplers = {}

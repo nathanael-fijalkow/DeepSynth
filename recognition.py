@@ -42,7 +42,8 @@ class RecognitionModel(nn.Module):
 
         features = self.feature_extractor(tasks)
 
-        probabilities = {name: self.projection_layer(name) for name in self.template.rules}
+        probabilities = {name: self.projection_layer[name](features)
+                         for name in self.template.rules}
         if not log_probabilities:
             probabilities = {key: value.exp().detach().cpu().numpy()
                              for key, value in probabilities.items()}
@@ -69,8 +70,6 @@ class RecognitionModel(nn.Module):
             grammars.append(grammar)
 
         return grammars
-
-
 
 class RecurrentFeatureExtractor(nn.Module):
     def __init__(self, _=None,
@@ -226,33 +225,46 @@ if __name__ == "__main__":
     assert ( torch.stack([fe.forward_one_task(task3),fe.forward_one_task(task2)],0).mean(0) - fe.forward_one_task(task) ).abs().max() < 1e-5
     assert ( torch.stack([fe.forward_one_task(task),fe.forward_one_task(task)],0).mean(0) - fe.forward_one_task(task3) ).abs().max() > 1e-5
 
+    from program import Program, Function, Variable, BasicPrimitive, New
 
+    template = PCFG("number",{"number": {BasicPrimitive("if"): (["bool","number","number"],1.),
+                                         BasicPrimitive("+"): (["number","number"],1.),
+                                         BasicPrimitive("0"): ([],1.),
+                                         BasicPrimitive("1"): ([],1.)},
+                              "bool": {BasicPrimitive("and"): (["bool","bool"],1.),
+                                       BasicPrimitive("lt"): (["number","number"],1.)}})
+    def show_grammar(g):
+        for production, rules in g.rules.items():
+            for r,(children, probability) in rules.items():
+                print(production," -> ",r,",".join(children),"\t",probability)
+
+    model = RecognitionModel(template,fe)
+
+    programs = [Function(BasicPrimitive("+"),[BasicPrimitive("0"),BasicPrimitive("1")]),
+                    BasicPrimitive("0"),
+                    BasicPrimitive("1")]
+    tasks = [task,task2,task3]
     
-    from DSL.deepcoder import *
-    import dsl
-    t0 = PolymorphicType("t0")
-    t1 = PolymorphicType("t1")
-    semantics = {
-        "RANGE": (),
-        "HEAD": (),
-        "TAIL": (),
-        "SUCC": (),
-        "PRED": (),
-        "MAP": (),
-    }
-    primitive_types = {
-        "HEAD": Arrow(List(INT), INT),
-        "TAIL": Arrow(List(INT), INT),
-        "RANGE": Arrow(INT, List(INT)),
-        "SUCC": Arrow(INT, INT),
-        "PRED": Arrow(INT, INT),
-        "MAP": Arrow(Arrow(t0, t1), Arrow(List(t0), List(t1))),
-    }
-    toy_DSL = dsl.DSL(semantics, primitive_types)
-    type_request = Arrow(List(INT), List(INT))
+    optimizer = torch.optim.Adam(model.parameters())
+    for step in range(10000):
+        optimizer.zero_grad()
 
-    # this fails!!
-    template = PCFG("number",{"number": {"if": (["bool","number","number"],1.),
-                                         "+": (["number","number"],1.)},
-                              "bool": {"and": (["bool","bool"],1.),
-                                       "lt": (["number","number"],1.)}})
+        grammars = model(tasks, log_probabilities=True)
+
+        likelihood = sum(g.log_probability_program("number",p)
+                         for g,p in zip(grammars, programs) )
+        (-likelihood).backward()
+        optimizer.step()
+        print("optimization step",step,"\tlog likelihood ",likelihood)
+        
+        
+
+    grammars = model(tasks)
+    for g,p in zip(grammars, programs):
+        show_grammar(g)
+        print(p)
+        print(g.probability_program("number",p))
+        print()
+
+    # asymptotically the likelihood should converge to -3ln3. it does on a my machine (Kevin)
+    
