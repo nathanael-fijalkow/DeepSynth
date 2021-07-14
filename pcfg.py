@@ -1,6 +1,5 @@
 import random
 import numpy as np
-from math import prod
 
 import vose
 
@@ -221,6 +220,23 @@ class PCFG:
             probability = self.rules[S][F][1]
             for i, arg in enumerate(args_P):
                 probability *= self.probability_program(self.rules[S][F][0][i], arg)
+            return probability
+
+        if isinstance(P, (Variable, BasicPrimitive, New)):
+            return self.rules[S][P][1]
+        assert False
+
+    def log_probability_program(self, S, P):
+        """
+        Compute the log probability of a program P generated from the non-terminal S
+        IMPORTANT! assumes that the probabilities stored in self.rules are actually log probabilities
+        """
+        if isinstance(P, Function):
+            F = P.function
+            args_P = P.arguments
+            probability = self.rules[S][F][1]
+            for i, arg in enumerate(args_P):
+                probability = probability + self.probability_program(self.rules[S][F][0][i], arg)
             return probability
 
         if isinstance(P, (Variable, BasicPrimitive, New)):
