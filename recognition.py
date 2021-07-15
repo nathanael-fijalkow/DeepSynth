@@ -8,78 +8,89 @@ from torch.nn.utils.rnn import pack_padded_sequence
 from pcfg import PCFG
 
 class RecognitionModel(nn.Module):
-    def __init__(self, template_pcfg, feature_extractor, intermediate_q=False):
+    def __init__(self, template_cfg, feature_extractor, intermediate_q=False):
         """
-        template_pcfg: a pcfg with the same structure that will be output by this recognition model
-        feature_extractor: a neural network module taking a list of tasks (such as a list of input-outputs) and returning a tensor of shape [len(list_of_tasks), feature_extractor.output_dimensionality]
-        intermediate_q: whether the pcfg weights are produced by first calculating an intermediate "Q" tensor as in dreamcoder and then constructing the PCFG from that
+        template_cfg: a cfg giving the structure that will be output 
+        by this recognition model
+
+        feature_extractor: a neural network module 
+        taking a list of tasks (such as a list of input-outputs) 
+        and returning a tensor of shape 
+        [len(list_of_tasks), feature_extractor.output_dimensionality]
+
+        intermediate_q: whether the pcfg weights are produced 
+        by first calculating an intermediate "Q" tensor as in dreamcoder 
+        and then constructing the PCFG from that
         """
         super(RecognitionModel, self).__init__()
 
         self.feature_extractor = feature_extractor
         self.intermediate_q = intermediate_q
 
-        self.template = template_pcfg
+        self.template = template_cfg
 
         H = self.feature_extractor.output_dimensionality # hidden
         if not intermediate_q:
             projection_layer = {}
-            for name,productions in template_pcfg.rules.items():
-                n_productions = len(productions)
-                module = nn.Sequential(nn.Linear(H, n_productions),
-                                       nn.LogSoftmax(-1))
-                projection_layer[name] = module
+            for S in template_cfg.rules:
+                n_productions = len(template_cfg.rules)
+                module = nn.Sequential(
+                    nn.Linear(H, n_productions),
+                    nn.LogSoftmax(-1)
+                    )
+                projection_layer[format(S)] = module
             self.projection_layer = nn.ModuleDict(projection_layer)
-
         else:
             assert False
-        
 
     def forward(self, tasks, log_probabilities=False):
-        """tasks: list of tasks
-        log_probabilities: if this is true then the returned PCFGs will have log probabilities instead of actual probabilities, and you will be able to back propagate through these long probabilities. otherwise it will return normal PCFGs that you can call sample on etc.
-        returns: list of PCFGs"""
+        """
+        tasks: list of tasks
 
+        log_probabilities: if this is true then the returned PCFGs 
+        will have log probabilities instead of actual probabilities, 
+        and you will be able to back propagate through these long 
+        probabilities. 
+        otherwise it will return normal PCFGs that you can call sample on etc.
+
+        returns: list of PCFGs
+        """
         features = self.feature_extractor(tasks)
+        template = self.template
 
-        probabilities = {name: self.projection_layer[name](features)
-                         for name in self.template.rules}
-        if not log_probabilities:
-            probabilities = {key: value.exp().detach().cpu().numpy()
-                             for key, value in probabilities.items()}
+        probabilities = {S: self.projection_layer[format(S)](features)
+                         for S in template.rules}
+
+        # if not log_probabilities:
+        #     probabilities = {key: value.exp().detach().cpu().numpy()
+        #                      for key, value in probabilities.items()}
 
         grammars = []
-        for b in range(len(tasks)): # iterate over batchs
-            grammar = copy.deepcopy(self.template)
-
-            for name,productions in self.template.rules.items():
-                # productions is a dictionary mapping {P: (l,w) }
-                # convert to a list ordered alphabetically
-                # this is because the neural network outputs a vector, which is ordered
-                # but the dictionaries unordered
-                possible_functions = list(sorted(productions.keys(),key=str))
-                for function_index, the_function in enumerate(possible_functions):
-                    l = self.template.rules[name][the_function][0]
-                    grammar.rules[name][the_function] = (l, probabilities[name][b,function_index])
-
-            if not log_probabilities:
-                # make sure we get the right vose samplers etc.
-                grammar = PCFG(grammar.start, grammar.rules,
-                               max_program_depth=grammar.max_program_depth)
-
-            grammars.append(grammar)
-
+        for b in range(len(tasks)): # iterate over batches
+            rules = {}
+            for S in template.rules:
+                rules[S] = {}
+                for i, P in enumerate(template.rules[S]):
+                    rules[S][P] = template.rules[S][P], probabilities[S][b, i]
+            grammars.append(rules)
         return grammars
+
+        #     if not log_probabilities:
+        #         # make sure we get the right vose samplers etc.
+        #         grammar = PCFG(grammar.start, grammar.rules,
+        #                        max_program_depth=grammar.max_program_depth)
+
+        #     grammars.append(grammar)
 
 class RecurrentFeatureExtractor(nn.Module):
     def __init__(self, _=None,
                  cuda=False,
-                 # what are the symbols that can occur in the inputs and
-                 # outputs
+                 # what are the symbols that can occur 
+                 # in the inputs and outputs
                  lexicon=None,
                  # how many hidden units
                  H=32,
-                 # Should the recurrent units be bidirectional?
+                 # should the recurrent units be bidirectional?
                  bidirectional=False):
         super(RecurrentFeatureExtractor, self).__init__()
 
@@ -106,7 +117,8 @@ class RecurrentFeatureExtractor(nn.Module):
         self.lexicon = lexicon
         self.symbolToIndex = {
             symbol: index for index,
-            symbol in enumerate(lexicon)}
+            symbol in enumerate(lexicon)
+            }
         self.startingIndex = self.symbolToIndex["STARTING"]
         self.endingIndex = self.symbolToIndex["ENDING"]
         self.startOfOutputIndex = self.symbolToIndex["STARTOFOUTPUT"]
@@ -127,7 +139,10 @@ class RecurrentFeatureExtractor(nn.Module):
     def tokenize(self, x): return x
 
     def packExamples(self, examples):
-        """IMPORTANT! xs must be sorted in decreasing order of size because pytorch is stupid"""
+        """
+        IMPORTANT! xs must be sorted in decreasing order of size 
+        because pytorch is stupid
+        """
         es = []
         sizes = []
         for xs, y in examples:
@@ -183,22 +198,71 @@ class RecurrentFeatureExtractor(nn.Module):
 
         # take the average activations across all of the examples
         # I think this might be better because we might be testing on data
-        # which has far more o far fewer examples then training
+        # which has far more or far fewer examples then training
         e = e.mean(dim=0)
         return e
 
     def forward(self, tasks):
         #fix me! properly batch the recurrent network across all tasks at once
-        return torch.stack([self.forward_one_task(task)
-                            for task in tasks ])
-
+        return torch.stack([self.forward_one_task(task) for task in tasks])
     
+def log_probability_program(rules, S, P):
+    """
+    Compute the log probability of a program P generated from the non-terminal S
+    IMPORTANT! assumes that the probabilities stored in self.rules are actually log probabilities
+    """
+    if isinstance(P, Function):
+        F = P.function
+        args_P = P.arguments
+        probability = rules[S][F][1]
+        for i, arg in enumerate(args_P):
+            probability = probability + log_probability_program(rules, rules[S][F][0][i], arg)
+        return probability
+
+    if isinstance(P, (Variable, BasicPrimitive, New)):
+        return rules[S][P][1]
+    assert False
+
 if __name__ == "__main__":
     H = 128 # hidden size of neural network
     
     fe = RecurrentFeatureExtractor(lexicon=list(range(10)),
                                    H=H,
                                    bidirectional=True)
+
+    from type_system import Type, PolymorphicType, PrimitiveType, Arrow, List, UnknownType, INT, BOOL
+    from program import Program, Function, Variable, BasicPrimitive, New
+    from dsl import DSL
+
+    primitive_types = {
+        "if": Arrow(BOOL, Arrow(INT, INT)),
+        "+": Arrow(INT, Arrow(INT, INT)),
+        "0": INT,
+        "1": INT,
+        "and": Arrow(BOOL, Arrow(BOOL, BOOL)),
+        "lt": Arrow(INT, Arrow(INT, BOOL)),
+    }
+
+    semantics = {
+        "if": lambda b: lambda x: lambda y: x if b else y,
+        "+": lambda x: lambda y: x + y,
+        "0": 0,
+        "1": 1,
+        "and": lambda b1: lambda b2: b1 and b2,
+        "lt": lambda x: lambda y: x <= y,
+    }
+
+    dsl = DSL(semantics, primitive_types)
+    type_request = Arrow(INT, INT)
+    template = dsl.DSL_to_CFG(type_request)
+    model = RecognitionModel(template,fe)
+
+    programs = [
+        Function(BasicPrimitive("+", Arrow(INT, Arrow(INT, INT))),[BasicPrimitive("0", INT),BasicPrimitive("1", INT)], INT),
+        BasicPrimitive("0", INT),
+        BasicPrimitive("1", INT)
+        ]
+
     xs = ([1,9],[8,8]) # inputs
     y = [3,4] # output
     ex1 = (xs,y) # a single input/output example
@@ -222,49 +286,28 @@ if __name__ == "__main__":
     assert torch.all( fe.forward([task,task2,task3])[2] == fe.forward_one_task(task3) )
 
     # pooling of examples happens through averages - check via this assert
-    assert ( torch.stack([fe.forward_one_task(task3),fe.forward_one_task(task2)],0).mean(0) - fe.forward_one_task(task) ).abs().max() < 1e-5
-    assert ( torch.stack([fe.forward_one_task(task),fe.forward_one_task(task)],0).mean(0) - fe.forward_one_task(task3) ).abs().max() > 1e-5
+    assert(torch.stack([fe.forward_one_task(task3),fe.forward_one_task(task2)],0).mean(0) - fe.forward_one_task(task)).abs().max() < 1e-5
+    assert(torch.stack([fe.forward_one_task(task),fe.forward_one_task(task)],0).mean(0) - fe.forward_one_task(task3)).abs().max() > 1e-5
 
-    from program import Program, Function, Variable, BasicPrimitive, New
-
-    template = PCFG("number",{"number": {BasicPrimitive("if"): (["bool","number","number"],1.),
-                                         BasicPrimitive("+"): (["number","number"],1.),
-                                         BasicPrimitive("0"): ([],1.),
-                                         BasicPrimitive("1"): ([],1.)},
-                              "bool": {BasicPrimitive("and"): (["bool","bool"],1.),
-                                       BasicPrimitive("lt"): (["number","number"],1.)}})
-    def show_grammar(g):
-        for production, rules in g.rules.items():
-            for r,(children, probability) in rules.items():
-                print(production," -> ",r,",".join(children),"\t",probability)
-
-    model = RecognitionModel(template,fe)
-
-    programs = [Function(BasicPrimitive("+"),[BasicPrimitive("0"),BasicPrimitive("1")]),
-                    BasicPrimitive("0"),
-                    BasicPrimitive("1")]
     tasks = [task,task2,task3]
     
     optimizer = torch.optim.Adam(model.parameters())
-    for step in range(10000):
+
+    for step in range(1000):
         optimizer.zero_grad()
 
         grammars = model(tasks, log_probabilities=True)
 
-        likelihood = sum(g.log_probability_program("number",p)
-                         for g,p in zip(grammars, programs) )
+        likelihood = sum(log_probability_program(g, template.start, p)
+                         for g,p in zip(grammars, programs))
         (-likelihood).backward()
         optimizer.step()
-        print("optimization step",step,"\tlog likelihood ",likelihood)
+        if step % 100 == 0:
+            print("optimization step",step,"\tlog likelihood ",likelihood)
         
-        
-
     grammars = model(tasks)
     for g,p in zip(grammars, programs):
-        show_grammar(g)
-        print(p)
-        print(g.probability_program("number",p))
-        print()
+        print(g, p, log_probability_program(template.start, p))
 
-    # asymptotically the likelihood should converge to -3ln3. it does on a my machine (Kevin)
+    # asymptotically the likelihood should converge to -3ln3. it does on my machine (Kevin)
     

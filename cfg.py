@@ -20,6 +20,7 @@ class CFG:
     def __init__(self, start, rules, max_program_depth):
         self.start = start
         self.rules = rules
+        self.max_program_depth = max_program_depth
 
         self.remove_non_productive(max_program_depth)
         self.remove_non_reachable(max_program_depth)

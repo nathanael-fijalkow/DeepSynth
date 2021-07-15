@@ -37,8 +37,7 @@ class PCFG:
 
         self.hash = hash(format(rules))
 
-        print("nath, what's up with this? Cant reversed() dict?")
-        #self.remove_non_productive(max_program_depth)
+        self.remove_non_productive(max_program_depth)
         self.remove_non_reachable(max_program_depth)
 
         for S in self.rules:
@@ -49,7 +48,7 @@ class PCFG:
 
         self.hash_table_programs = {}
         self.max_probability = {}
-        #self.compute_max_probability()
+        self.compute_max_probability()
 
         self.list_derivations = {}
         self.vose_samplers = {}
@@ -237,7 +236,7 @@ class PCFG:
             args_P = P.arguments
             probability = self.rules[S][F][1]
             for i, arg in enumerate(args_P):
-                probability = probability + self.probability_program(self.rules[S][F][0][i], arg)
+                probability += self.log_probability_program(self.rules[S][F][0][i], arg)
             return probability
 
         if isinstance(P, (Variable, BasicPrimitive, New)):
