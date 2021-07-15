@@ -309,7 +309,7 @@ if __name__ == "__main__":
     task3 = [ex2]
 
     # batched forward pass - test cases
-    assert fe.forward([task,task2,task3]).shape == torch.Size([3,H])
+    assert fe.forward([task,task2,task3]).shape == torch.Size([3,H]) 
     assert torch.all( fe.forward([task,task2,task3])[0] == fe.forward_one_task(task) )
     assert torch.all( fe.forward([task,task2,task3])[1] == fe.forward_one_task(task2) )
     assert torch.all( fe.forward([task,task2,task3])[2] == fe.forward_one_task(task3) )
