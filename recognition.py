@@ -293,7 +293,7 @@ if __name__ == "__main__":
     
     optimizer = torch.optim.Adam(model.parameters())
 
-    for step in range(1000):
+    for step in range(2000):
         optimizer.zero_grad()
 
         grammars = model(tasks, log_probabilities=True)
@@ -304,10 +304,27 @@ if __name__ == "__main__":
         optimizer.step()
         if step % 100 == 0:
             print("optimization step",step,"\tlog likelihood ",likelihood)
-        
+
+    from math import exp
+
+    def normalise(rules):
+        normalised_rules = {}
+        for S in rules:
+            s = sum(exp(rules[S][P][1].item()) for P in rules[S])
+            if s > 0:
+                normalised_rules[S] = {}
+                for P in rules[S]:
+                    normalised_rules[S][P] = rules[S][P][0], exp(rules[S][P][1].item()) / s
+        return PCFG(template.start, 
+            normalised_rules, 
+            max_program_depth=template.max_program_depth)        
+
     grammars = model(tasks)
-    for g,p in zip(grammars, programs):
-        print(g, p, log_probability_program(template.start, p))
+    for g, p in zip(grammars, programs):
+        grammar = normalise(g)
+        print(grammar)
+        print("program", p)
+        print(grammar.probability_program(template.start, p))
 
     # asymptotically the likelihood should converge to -3ln3. it does on my machine (Kevin)
     
