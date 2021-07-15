@@ -6,6 +6,7 @@ import torch.nn.functional as F
 from torch.nn.utils.rnn import pack_padded_sequence
 
 from pcfg import PCFG
+from pcfg_logprob import LogProbPCFG
 
 class RecognitionModel(nn.Module):
     def __init__(self, template_cfg, feature_extractor, intermediate_q=False):
@@ -43,16 +44,9 @@ class RecognitionModel(nn.Module):
         else:
             assert False
 
-    def forward(self, tasks, log_probabilities=False):
+    def forward(self, tasks):
         """
         tasks: list of tasks
-
-        log_probabilities: if this is true then the returned PCFGs 
-        will have log probabilities instead of actual probabilities, 
-        and you will be able to back propagate through these long 
-        probabilities. 
-        otherwise it will return normal PCFGs that you can call sample on etc.
-
         returns: list of PCFGs
         """
         features = self.feature_extractor(tasks)
@@ -61,10 +55,6 @@ class RecognitionModel(nn.Module):
         probabilities = {S: self.projection_layer[format(S)](features)
                          for S in template.rules}
 
-        # if not log_probabilities:
-        #     probabilities = {key: value.exp().detach().cpu().numpy()
-        #                      for key, value in probabilities.items()}
-
         grammars = []
         for b in range(len(tasks)): # iterate over batches
             rules = {}
@@ -72,15 +62,11 @@ class RecognitionModel(nn.Module):
                 rules[S] = {}
                 for i, P in enumerate(template.rules[S]):
                     rules[S][P] = template.rules[S][P], probabilities[S][b, i]
-            grammars.append(rules)
+            grammar = LogProbPCFG(template.start, 
+                rules, 
+                max_program_depth=template.max_program_depth)
+            grammars.append(grammar)
         return grammars
-
-        #     if not log_probabilities:
-        #         # make sure we get the right vose samplers etc.
-        #         grammar = PCFG(grammar.start, grammar.rules,
-        #                        max_program_depth=grammar.max_program_depth)
-
-        #     grammars.append(grammar)
 
 class RecurrentFeatureExtractor(nn.Module):
     def __init__(self, _=None,
@@ -205,126 +191,4 @@ class RecurrentFeatureExtractor(nn.Module):
     def forward(self, tasks):
         #fix me! properly batch the recurrent network across all tasks at once
         return torch.stack([self.forward_one_task(task) for task in tasks])
-    
-def log_probability_program(rules, S, P):
-    """
-    Compute the log probability of a program P generated from the non-terminal S
-    IMPORTANT! assumes that the probabilities stored in self.rules are actually log probabilities
-    """
-    if isinstance(P, Function):
-        F = P.function
-        args_P = P.arguments
-        probability = rules[S][F][1]
-        for i, arg in enumerate(args_P):
-            probability = probability + log_probability_program(rules, rules[S][F][0][i], arg)
-        return probability
-
-    if isinstance(P, (Variable, BasicPrimitive, New)):
-        return rules[S][P][1]
-    assert False
-
-if __name__ == "__main__":
-    H = 128 # hidden size of neural network
-    
-    fe = RecurrentFeatureExtractor(lexicon=list(range(10)),
-                                   H=H,
-                                   bidirectional=True)
-
-    from type_system import Type, PolymorphicType, PrimitiveType, Arrow, List, UnknownType, INT, BOOL
-    from program import Program, Function, Variable, BasicPrimitive, New
-    from dsl import DSL
-
-    primitive_types = {
-        "if": Arrow(BOOL, Arrow(INT, INT)),
-        "+": Arrow(INT, Arrow(INT, INT)),
-        "0": INT,
-        "1": INT,
-        "and": Arrow(BOOL, Arrow(BOOL, BOOL)),
-        "lt": Arrow(INT, Arrow(INT, BOOL)),
-    }
-
-    semantics = {
-        "if": lambda b: lambda x: lambda y: x if b else y,
-        "+": lambda x: lambda y: x + y,
-        "0": 0,
-        "1": 1,
-        "and": lambda b1: lambda b2: b1 and b2,
-        "lt": lambda x: lambda y: x <= y,
-    }
-
-    dsl = DSL(semantics, primitive_types)
-    type_request = Arrow(INT, INT)
-    template = dsl.DSL_to_CFG(type_request)
-    model = RecognitionModel(template,fe)
-
-    programs = [
-        Function(BasicPrimitive("+", Arrow(INT, Arrow(INT, INT))),[BasicPrimitive("0", INT),BasicPrimitive("1", INT)], INT),
-        BasicPrimitive("0", INT),
-        BasicPrimitive("1", INT)
-        ]
-
-    xs = ([1,9],[8,8]) # inputs
-    y = [3,4] # output
-    ex1 = (xs,y) # a single input/output example
-
-    xs = ([1,9,7],[8,8,7]) # inputs
-    y = [4] # output
-    ex2 = (xs,y) # another input/output example
-
-    task = [ex1,ex2] # a task is a list of input/outputs
-    
-    assert fe.forward_one_task( task).shape == torch.Size([H])
-
-    # a few more tasks
-    task2 = [ex1]
-    task3 = [ex2]
-
-    # batched forward pass - test cases
-    assert fe.forward([task,task2,task3]).shape == torch.Size([3,H])
-    assert torch.all( fe.forward([task,task2,task3])[0] == fe.forward_one_task(task) )
-    assert torch.all( fe.forward([task,task2,task3])[1] == fe.forward_one_task(task2) )
-    assert torch.all( fe.forward([task,task2,task3])[2] == fe.forward_one_task(task3) )
-
-    # pooling of examples happens through averages - check via this assert
-    assert(torch.stack([fe.forward_one_task(task3),fe.forward_one_task(task2)],0).mean(0) - fe.forward_one_task(task)).abs().max() < 1e-5
-    assert(torch.stack([fe.forward_one_task(task),fe.forward_one_task(task)],0).mean(0) - fe.forward_one_task(task3)).abs().max() > 1e-5
-
-    tasks = [task,task2,task3]
-    
-    optimizer = torch.optim.Adam(model.parameters())
-
-    for step in range(2000):
-        optimizer.zero_grad()
-
-        grammars = model(tasks, log_probabilities=True)
-
-        likelihood = sum(log_probability_program(g, template.start, p)
-                         for g,p in zip(grammars, programs))
-        (-likelihood).backward()
-        optimizer.step()
-        if step % 100 == 0:
-            print("optimization step",step,"\tlog likelihood ",likelihood)
-
-    from math import exp
-
-    def normalise(rules):
-        normalised_rules = {}
-        for S in rules:
-            s = sum(exp(rules[S][P][1].item()) for P in rules[S])
-            if s > 0:
-                normalised_rules[S] = {}
-                for P in rules[S]:
-                    normalised_rules[S][P] = rules[S][P][0], exp(rules[S][P][1].item()) / s
-        return PCFG(template.start, 
-            normalised_rules, 
-            max_program_depth=template.max_program_depth)        
-
-    grammars = model(tasks)
-    for g, p in zip(grammars, programs):
-        grammar = normalise(g)
-        print(grammar)
-        print("program", p)
-        print(grammar.probability_program(template.start, p))
-
-    # asymptotically the likelihood should converge to -3ln3. it does on my machine (Kevin)
     
