@@ -281,6 +281,13 @@ class RecurrentFeatureExtractor(nn.Module):
         return e
 
     def forward(self, tasks):
+        """tasks: list of tasks
+        each task is a list of input outputs
+        each input output is a tuple of input, output
+        each output is a list whose members are elements of self.lexicon
+        each input is a tuple of lists, and each member of each such list is an element of self.lexicon
+
+        returns: tensor of shape [len(tasks),self.output_dimensionality]"""
         #fix me! properly batch the recurrent network across all tasks at once
         return torch.stack([self.forward_one_task(task)
                             for task in tasks ])
