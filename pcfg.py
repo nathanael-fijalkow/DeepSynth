@@ -246,7 +246,7 @@ class PCFG:
             probability = self.rules[S][F][1]
                 
             for i, arg in enumerate(args_P):
-                probability = probability + self.probability_program(self.rules[S][F][0][i], arg)
+                probability += self.log_probability_program(self.rules[S][F][0][i], arg)
             return probability
 
         if isinstance(P, (Variable, BasicPrimitive, New)):
