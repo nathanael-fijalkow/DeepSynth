@@ -7,6 +7,7 @@ from torch.nn.utils.rnn import pack_padded_sequence
 
 from dsl import *
 from pcfg import PCFG
+from pcfg_logprob import LogProbPCFG
 
 class RecognitionModel(nn.Module):
     def __init__(self, feature_extractor,
@@ -174,12 +175,8 @@ class RecognitionModel(nn.Module):
                                process_probabilities=False)
 
             grammars.append(grammar)
-#        probabilities = {S: self.projection_layer[format(S)](features)
-                         for S in template.rules}
 
-        # if not log_probabilities:
-        #     probabilities = {key: value.exp().detach().cpu().numpy()
-        #                      for key, value in probabilities.items()}
+        probabilities = {S: self.projection_layer[format(S)](features) for S in template.rules}
 
         grammars = []
         for b in range(len(tasks)): # iterate over batches
@@ -188,15 +185,11 @@ class RecognitionModel(nn.Module):
                 rules[S] = {}
                 for i, P in enumerate(template.rules[S]):
                     rules[S][P] = template.rules[S][P], probabilities[S][b, i]
-            grammars.append(rules)
+            grammar = LogProbPCFG(template.start, 
+                rules, 
+                max_program_depth=template.max_program_depth)
+            grammars.append(grammar)
         return grammars
-
-        #     if not log_probabilities:
-        #         # make sure we get the right vose samplers etc.
-        #         grammar = PCFG(grammar.start, grammar.rules,
-        #                        max_program_depth=grammar.max_program_depth)
-
-        #     grammars.append(grammar)
 
 class RecurrentFeatureExtractor(nn.Module):
     def __init__(self, _=None,
@@ -329,23 +322,6 @@ class RecurrentFeatureExtractor(nn.Module):
         #fix me! properly batch the recurrent network across all tasks at once
         return torch.stack([self.forward_one_task(task) for task in tasks])
     
-def log_probability_program(rules, S, P):
-    """
-    Compute the log probability of a program P generated from the non-terminal S
-    IMPORTANT! assumes that the probabilities stored in self.rules are actually log probabilities
-    """
-    if isinstance(P, Function):
-        F = P.function
-        args_P = P.arguments
-        probability = rules[S][F][1]
-        for i, arg in enumerate(args_P):
-            probability = probability + log_probability_program(rules, rules[S][F][0][i], arg)
-        return probability
-
-    if isinstance(P, (Variable, BasicPrimitive, New)):
-        return rules[S][P][1]
-    assert False
-
 if __name__ == "__main__":
     H = 128 # hidden size of neural network
     
@@ -522,4 +498,3 @@ if __name__ == "__main__":
         print(grammar.probability_program(template.start, p))
 
     # asymptotically the likelihood should converge to -3ln3. it does on my machine (Kevin)
-    
