@@ -30,25 +30,32 @@ class PCFG:
     for all programs appearing in max_probability
     """
 
-    def __init__(self, start, rules, max_program_depth=4):
+    def __init__(self, start, rules, max_program_depth=4,
+                 process_probabilities=True):
+        """
+        process_probabilities: whether we should create samplers, remove nonreachable productions, etc.
+        this is not necessary and in fact would cause problems for pcfg w/ log probabilities
+        """
         self.start = start
         self.rules = rules
         self.max_program_depth = max_program_depth
 
-        self.hash = hash(format(rules))
+        if process_probabilities:
+            self.hash = hash(format(rules))
 
-        self.remove_non_productive(max_program_depth)
-        self.remove_non_reachable(max_program_depth)
+            self.remove_non_productive(max_program_depth)
+            self.remove_non_reachable(max_program_depth)
 
-        for S in self.rules:
-            s = sum([self.rules[S][P][1] for P in self.rules[S]])
-            for P in self.rules[S]:
-                args_P, w = self.rules[S][P]
-                self.rules[S][P] = (args_P, w / s)
+            for S in self.rules:
+                s = sum([self.rules[S][P][1] for P in self.rules[S]])
+                for P in self.rules[S]:
+                    args_P, w = self.rules[S][P]
+                    self.rules[S][P] = (args_P, w / s)
 
         self.hash_table_programs = {}
         self.max_probability = {}
-        self.compute_max_probability()
+        if process_probabilities:
+            self.compute_max_probability()
 
         self.list_derivations = {}
         self.vose_samplers = {}
@@ -58,8 +65,9 @@ class PCFG:
                 self.rules[S], key=lambda P: self.rules[S][P][1]
             )
             self.vose_samplers[S] = vose.Sampler(
-                np.array([self.rules[S][P][1] for P in self.list_derivations[S]])
+                np.array([self.rules[S][P][1] for P in self.list_derivations[S]],dtype=np.float)
             )
+            
 
     def return_unique(self, P):
         """
@@ -218,6 +226,7 @@ class PCFG:
             F = P.function
             args_P = P.arguments
             probability = self.rules[S][F][1]
+            
             for i, arg in enumerate(args_P):
                 probability *= self.probability_program(self.rules[S][F][0][i], arg)
             return probability
@@ -235,10 +244,12 @@ class PCFG:
             F = P.function
             args_P = P.arguments
             probability = self.rules[S][F][1]
+                
             for i, arg in enumerate(args_P):
                 probability += self.log_probability_program(self.rules[S][F][0][i], arg)
             return probability
 
         if isinstance(P, (Variable, BasicPrimitive, New)):
             return self.rules[S][P][1]
+                
         assert False
