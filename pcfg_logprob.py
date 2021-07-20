@@ -89,27 +89,6 @@ class LogProbPCFG:
                 s += "   {} - {}: {}     {}\n".format(P, P.type, args_P, w)
         return s
 
-    def sampling(self):
-        """
-        A generator that samples programs according to the PCFG G
-        """
-
-        while True:
-            yield self.sample_program(self.start)
-
-    def sample_program(self, S):
-        pass
-        # TO DO!
-        i = self.vose_samplers[S].sample()
-        P = self.list_derivations[S][i]
-        args_P, w = self.rules[S][P]
-        if len(args_P) == 0:
-            return P
-        arguments = []
-        for arg in args_P:
-            arguments.append(self.sample_program(arg))
-        return Function(P, arguments)
-
     def log_probability_program(self, S, P):
         """
         Compute the log probability of a program P generated from the non-terminal S
@@ -138,3 +117,4 @@ class LogProbPCFG:
         return PCFG(self.start, 
             normalised_rules, 
             max_program_depth=self.max_program_depth)
+    

@@ -1,5 +1,6 @@
 from type_system import *
 from program import *
+from pcfg_logprob import LogProbPCFG
 
 class CFG:
     '''
@@ -95,3 +96,22 @@ class CFG:
             for P in self.rules[S]:
                 s += '   {} - {}: {}\n'.format(P, P.type, self.rules[S][P])
         return s
+
+    def Q_to_PCFG(self, Q):
+        rules = {}
+        for S in self.rules:
+            rules[S] = {}
+            (_,context, _) = S
+            if context:
+                (old_primitive, argument_number) = context
+            else:
+                (old_primitive, argument_number) = None, 0
+            for P in self.rules[S]:
+                rules[S][P] = \
+                self.rules[S][P], Q[old_primitive, argument_number, P]
+
+        logging.debug('Rules of the CFG from the initial non-terminal:\n%s'%format(rules[self.start]))
+
+        return LogProbPCFG(start = self.start, 
+                    rules = rules,
+                    max_program_depth = self.max_program_depth)

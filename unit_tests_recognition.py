@@ -42,92 +42,114 @@ class TestSum(unittest.TestCase):
             "lt": lambda x: lambda y: x <= y,
         }
 
-        dsl = DSL(semantics, primitive_types)
-        # type_request = INT
-        type_request = Arrow(INT, INT)
-        template = dsl.DSL_to_CFG(type_request)
-        model = RecognitionModel(template, fe)
-
-        # programs = [
-        #     Function(BasicPrimitive("+", Arrow(INT, Arrow(INT, INT))),[BasicPrimitive("0", INT),BasicPrimitive("1", INT)], INT),
-        #     BasicPrimitive("0", INT),
-        #     BasicPrimitive("1", INT)
-        #     ]
+        template_dsl = DSL(semantics, primitive_types)
+        type_request = INT
+        template_cfg = template_dsl.DSL_to_CFG(type_request=type_request, 
+                                      upper_bound_type_size=4,
+                                      max_program_depth=4, 
+                                      min_variable_depth=2,
+                                      n_gram = 1)
 
         programs = [
-            Function(
-                BasicPrimitive("+", Arrow(INT, Arrow(INT, INT))), 
-                [BasicPrimitive("1", INT)], 
-                Arrow(INT, INT)),
-
-            Function(
-                BasicPrimitive("+", Arrow(INT, Arrow(INT, INT))), 
-                [Function(
-                    BasicPrimitive("+", Arrow(INT, Arrow(INT, INT))), 
-                    [BasicPrimitive("1", INT), BasicPrimitive("1", INT)],
-                    INT),
-                ],
-                Arrow(INT, INT))
+            Function(BasicPrimitive("+", Arrow(INT, Arrow(INT, INT))),[BasicPrimitive("0", INT),BasicPrimitive("1", INT)], INT),
+            BasicPrimitive("0", INT),
+            BasicPrimitive("1", INT)
             ]
 
-        x = [4] # input
-        y = [5] # output
-        ex1 = (x,y) # a single input/output example
+        # programs = [
+        #     Function(
+        #         BasicPrimitive("+", Arrow(INT, Arrow(INT, INT))), 
+        #         [BasicPrimitive("1", INT)], 
+        #         Arrow(INT, INT)),
 
-        x = [9] # input
-        y = [10] # output
-        ex2 = (x,y) # a single input/output example
+        #     Function(
+        #         BasicPrimitive("+", Arrow(INT, Arrow(INT, INT))), 
+        #         [Function(
+        #             BasicPrimitive("+", Arrow(INT, Arrow(INT, INT))), 
+        #             [BasicPrimitive("1", INT), BasicPrimitive("1", INT)],
+        #             INT),
+        #         ],
+        #         Arrow(INT, INT))
+        #     ]
 
-        task1 = [ex1,ex2] # a task is a list of input/outputs
+        # x = [4] # input
+        # y = [5] # output
+        # ex1 = (x,y) # a single input/output example
 
-        x = [8] # input
-        y = [10] # output
-        ex1 = (x,y) # a single input/output example
+        # x = [9] # input
+        # y = [10] # output
+        # ex2 = (x,y) # a single input/output example
 
-        task2 = [ex1] # a task is a list of input/outputs
+        # task1 = [ex1,ex2] # a task is a list of input/outputs
 
-        tasks = [task1,task2]
+        # x = [8] # input
+        # y = [10] # output
+        # ex1 = (x,y) # a single input/output example
 
-        # xs = ([1,9,7],[8,8,7]) # inputs
-        # y = [4] # output
-        # ex2 = (xs,y) # another input/output example
+        # task2 = [ex1] # a task is a list of input/outputs
 
-        # task = [ex1,ex2] # a task is a list of input/outputs
-        # task2 = [ex1]
-        # task3 = [ex2]
+        # tasks = [task1,task2]
 
-        # assert fe.forward_one_task( task).shape == torch.Size([H])
-        # # batched forward pass - test cases
-        # assert fe.forward([task,task2,task3]).shape == torch.Size([3,H])
-        # assert torch.all( fe.forward([task,task2,task3])[0] == fe.forward_one_task(task) )
-        # assert torch.all( fe.forward([task,task2,task3])[1] == fe.forward_one_task(task2) )
-        # assert torch.all( fe.forward([task,task2,task3])[2] == fe.forward_one_task(task3) )
+        xs = ([1,9,7],[8,8,7]) # inputs
+        y = [4] # output
+        ex1 = (xs,y) # some input/output example
 
-        # # pooling of examples happens through averages - check via this assert
-        # assert(torch.stack([fe.forward_one_task(task3),fe.forward_one_task(task2)],0).mean(0) - fe.forward_one_task(task)).abs().max() < 1e-5
-        # assert(torch.stack([fe.forward_one_task(task),fe.forward_one_task(task)],0).mean(0) - fe.forward_one_task(task3)).abs().max() > 1e-5
+        xs = ([1,3,7],[1,7]) # inputs
+        y = [6] # output
+        ex2 = (xs,y) # another input/output example
 
-        # tasks = [task,task2,task3]
+        task = [ex1,ex2] # a task is a list of input/outputs
+        task2 = [ex1]
+        task3 = [ex2]
 
-        optimizer = torch.optim.Adam(model.parameters())
+        assert fe.forward_one_task( task).shape == torch.Size([H])
+        # batched forward pass - test cases
+        assert fe.forward([task,task2,task3]).shape == torch.Size([3,H])
+        assert torch.all( fe.forward([task,task2,task3])[0] == fe.forward_one_task(task) )
+        assert torch.all( fe.forward([task,task2,task3])[1] == fe.forward_one_task(task2) )
+        assert torch.all( fe.forward([task,task2,task3])[2] == fe.forward_one_task(task3) )
 
-        for step in range(2000):
-            optimizer.zero_grad()
+        # pooling of examples happens through averages - check via this assert
+        assert(torch.stack([fe.forward_one_task(task3),fe.forward_one_task(task2)],0).mean(0) - fe.forward_one_task(task)).abs().max() < 1e-5
+        assert(torch.stack([fe.forward_one_task(task),fe.forward_one_task(task)],0).mean(0) - fe.forward_one_task(task3)).abs().max() > 1e-5
+
+        tasks = [task,task2,task3]
+
+        models = {
+        "has Q": RecognitionModel(
+            fe, 
+            template_dsl=template_dsl, 
+            template_cfg=template_cfg,
+            type_request=type_request
+            ),
+        "has no Q (directly predict probabilities)": RecognitionModel(
+            fe,
+            template_cfg=template_cfg
+            )
+        }
+
+        for model_name, model in models.items():
+            print("training model", model_name)
+            optimizer = torch.optim.Adam(model.parameters())
+
+            for step in range(200):
+                optimizer.zero_grad()
+                grammars = model(tasks)
+                likelihood = sum(g.log_probability_program(template_cfg.start, p)
+                                 for g,p in zip(grammars, programs))
+                (-likelihood).backward()
+                optimizer.step()
+
+                if step % 100 == 0:
+                    print("optimization step", step, "\tlog likelihood ", likelihood)
+
             grammars = model(tasks)
-            likelihood = sum(g.log_probability_program(template.start, p)
-                             for g,p in zip(grammars, programs))
-            (-likelihood).backward()
-            optimizer.step()
-
-            if step % 100 == 0:
-                print("optimization step", step, "\tlog likelihood ", likelihood)
-
-        grammars = model(tasks)
-        for g, p in zip(grammars, programs):
-            grammar = g.normalise()
-            print(grammar)
-            print("program", p)
-            print(grammar.probability_program(template.start, p))
+            for g, p in zip(grammars, programs):
+                grammar = g.normalise()
+                print("predicted grammar", grammar)
+                print("intended program", p)
+                print("probability of the intended program", 
+                    grammar.probability_program(template_cfg.start, p))
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
