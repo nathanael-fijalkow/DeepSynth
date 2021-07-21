@@ -82,10 +82,10 @@ class TestSum(unittest.TestCase):
 
         tasks = [[ex]]
 
-        # PCFG_predictor.train(programs, tasks)
-        # PCFG_predictor.test(programs, tasks)
-        # Q_predictor.train(programs, tasks)
-        # Q_predictor.test(programs, tasks)
+        PCFG_predictor.train(programs, tasks)
+        PCFG_predictor.test(programs, tasks)
+        Q_predictor.train(programs, tasks)
+        Q_predictor.test(programs, tasks)
 
     def test_predictions_with_inputs(self):
         t0 = PolymorphicType('t0')

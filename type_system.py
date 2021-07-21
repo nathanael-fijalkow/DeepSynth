@@ -1,3 +1,6 @@
+import os
+import sys
+
 '''
 Objective: define a type system.
 A type can be either PolymorphicType, PrimitiveType, Arrow, or List
