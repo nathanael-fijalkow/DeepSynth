@@ -1,6 +1,8 @@
 import random
 import numpy as np
 from math import exp
+import os
+import sys
 
 import vose
 
@@ -9,7 +11,10 @@ from program import Program, Function, Variable, BasicPrimitive, New
 from pcfg import PCFG
 
 # make sure hash is deterministic
-PYTHONHASHSEED = 0
+hashseed = os.getenv('PYTHONHASHSEED')
+if not hashseed:
+    os.environ['PYTHONHASHSEED'] = '0'
+    os.execv(sys.executable, [sys.executable] + sys.argv)
 
 class LogProbPCFG:
     """

@@ -1,5 +1,7 @@
 import random
 import numpy as np
+import os
+import sys
 
 import vose
 
@@ -7,7 +9,10 @@ from type_system import *
 from program import Program, Function, Variable, BasicPrimitive, New
 
 # make sure hash is deterministic
-PYTHONHASHSEED = 0
+hashseed = os.getenv('PYTHONHASHSEED')
+if not hashseed:
+    os.environ['PYTHONHASHSEED'] = '0'
+    os.execv(sys.executable, [sys.executable] + sys.argv)
 
 class PCFG:
     """

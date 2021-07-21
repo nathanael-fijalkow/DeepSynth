@@ -1,7 +1,12 @@
+import logging
+import os
+import sys
+
+import vose
+
 from type_system import *
 from cons_list import index
-
-import logging
+from program import Program, Function, Variable, BasicPrimitive, New
 
 # dictionary { number of environment : value }
 # environment: a cons list
@@ -11,7 +16,10 @@ import logging
 # from the non-terminal S when the underlying PCFG is G.
 
 # make sure hash is deterministic
-PYTHONHASHSEED = 0
+hashseed = os.getenv('PYTHONHASHSEED')
+if not hashseed:
+    os.environ['PYTHONHASHSEED'] = '0'
+    os.execv(sys.executable, [sys.executable] + sys.argv)
 
 class Program:
     """

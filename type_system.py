@@ -4,7 +4,11 @@ A type can be either PolymorphicType, PrimitiveType, Arrow, or List
 '''
 
 # make sure hash is deterministic
-PYTHONHASHSEED = 0
+hashseed = os.getenv('PYTHONHASHSEED')
+if not hashseed:
+    os.environ['PYTHONHASHSEED'] = '0'
+    os.execv(sys.executable, [sys.executable] + sys.argv)
+
 class Type:
     '''
     Object that represents a type
