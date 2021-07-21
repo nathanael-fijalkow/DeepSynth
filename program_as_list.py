@@ -101,7 +101,8 @@ def reconstruct_from_compressed(program, target_type):
     return reconstruct_from_list(program_as_list, target_type)
 
 
-def list_from_compressed(program, program_as_list=[]):
+def list_from_compressed(program, program_as_list=None):
+    program_as_list = program_as_list or []
     (P, sub_program) = program
     if sub_program:
         list_from_compressed(sub_program, program_as_list)
