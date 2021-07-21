@@ -27,9 +27,8 @@ class LogProbPCFG:
         self.max_program_depth = max_program_depth
 
         # self.hash = hash(format(rules))
-
-        self.remove_non_productive(max_program_depth)
-        self.remove_non_reachable(max_program_depth)
+        # self.remove_non_productive(max_program_depth)
+        # self.remove_non_reachable(max_program_depth)
 
     def remove_non_productive(self, max_program_depth=4):
         """
@@ -106,6 +105,8 @@ class LogProbPCFG:
         assert False
 
     def normalise(self):
+        self.remove_non_productive(self.max_program_depth)
+        self.remove_non_reachable(self.max_program_depth)
         normalised_rules = {}
         for S in self.rules:
             s = sum(exp(self.rules[S][P][1].item()) for P in self.rules[S])

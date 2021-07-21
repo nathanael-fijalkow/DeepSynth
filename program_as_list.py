@@ -31,7 +31,6 @@ from program import BasicPrimitive, Function, Lambda, New, Variable
 #             return P.eval_naive(dsl, environment)
 #         assert False
 
-
 def evaluation_from_compressed(program_compressed, dsl, environment, target_type):
     # # TOP DOWN approach
     # program_as_list = []
@@ -74,10 +73,6 @@ def evaluation_from_compressed(program_compressed, dsl, environment, target_type
             P = None
 
     return stack.pop()
-
-
-# TO DO!
-# # Once we have a good JSON format for PCFG and we can test semantic_experiments
 
 
 def reconstruct_from_list(program_as_list, target_type):
