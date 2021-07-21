@@ -15,6 +15,23 @@ except:
         return y
 
 
+def sqrt_sampling_with_sbsur(G: PCFG, batch_size: int = 100, start = None):
+    """
+    A generator that samples programs according to the sqrt of the PCFG G.
+    It uses Stochastic Beam Search and Unique Randomizer to sample unique programs.
+    Note that contrary to sqrt_sampling, it yields compressed programs.
+    """
+    SQRT = sqrt_PCFG(G)
+    start = start or SQRT.start
+    sampler = SQRT.get_sbsur_sampler(SQRT.start)
+    while True:
+        batch = sampler(batch_size)
+        for el in batch:
+            yield el
+        if len(batch) < batch_size:
+            break
+
+
 def sqrt_sampling(G: PCFG):
     """
     A generator that samples programs according to the sqrt of the PCFG G
