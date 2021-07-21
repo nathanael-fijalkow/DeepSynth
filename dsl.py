@@ -19,9 +19,10 @@ class DSL:
     for P a BasicPrimitive
     """
 
-    def __init__(self, semantics, primitive_types):
+    def __init__(self, semantics, primitive_types, no_repetitions=None):
         self.list_primitives = []
         self.semantics = {}
+        self.no_repetitions = no_repetitions or set()
 
         for p in primitive_types:
             formatted_p = format(p)
@@ -148,6 +149,9 @@ class DSL:
 
             elif depth < max_program_depth:
                 for P in self.list_primitives:
+                    if isinstance(P, BasicPrimitive) and P.primitive in self.no_repetitions and \
+                            context and len(context) > 0 and context[0][0].primitive == P.primitive:
+                        continue
                     type_P = P.type
                     arguments_P = type_P.ends_with(current_type)
                     if arguments_P != None:
