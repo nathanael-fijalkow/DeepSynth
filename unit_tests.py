@@ -9,7 +9,7 @@ import dsl as dsl
 from DSL.deepcoder import *
 from Algorithms.heap_search import heap_search
 from Algorithms.a_star import a_star
-from Algorithms.sqrt_sampling import sqrt_sampling
+from Algorithms.sqrt_sampling import sqrt_sampling, sqrt_sampling_with_sbsur
 from Algorithms.threshold_search import bounded_threshold
 from program_as_list import evaluation_from_compressed
 
@@ -363,6 +363,30 @@ class TestSum(unittest.TestCase):
         random_ratios = random.sample(ratios, 5)
         for r in random_ratios:
             self.assertAlmostEqual(ratios[0], r, 1)
+
+    def test_completesness_sqrt_sampling_with_sbsur(self):
+        """
+        Check if sqrt_sampling_with_sbsur algorithm does not miss any program.
+        """
+        try:
+            import sbsur
+        except ImportError:
+            return
+        n = 10_0000
+        deepcoder = dsl.DSL(semantics, primitive_types)
+        type_request = Arrow(List(INT), List(INT))
+        r = type_request.returns()
+        deepcoder_PCFG = deepcoder.DSL_to_Random_PCFG(type_request, alpha=0.6)
+
+        gen_sqrt_sampling = sqrt_sampling_with_sbsur(deepcoder_PCFG)  # generator for sqrt sampling
+
+        seen_programs = set()
+        for program in gen_sqrt_sampling:
+            prog = reconstruct_from_compressed(program, r)
+            self.assertNotIn(str(prog), seen_programs)
+            seen_programs.add(str(prog))
+            if len(seen_programs) > n:
+                break
 
     def test_evaluation_from_compressed(self):
         """

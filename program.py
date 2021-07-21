@@ -1,8 +1,6 @@
-import logging
 import os
 import sys
 
-import vose
 
 from type_system import *
 from cons_list import index

@@ -231,3 +231,99 @@ class PCFG:
         if isinstance(P, (Variable, BasicPrimitive, New)):
             return self.rules[S][P][1]
         assert False
+
+    def get_sbsur_sampler(self, S=None, seed=None):
+        """
+        Return an sbs ur sampler from this PCFG starting from non-terminal S or from start if S is None.
+        Returns a function: batch_size -> list[program]
+        """
+        from sbsur import SequenceGenerator, sample
+        authorized_depth = self.max_program_depth - (1 if S is not None else 0)
+        S = S or self.start
+        max_categories = max(len(self.list_derivations[x]) for x in self.rules)
+
+        # int list -> log probs | None
+        def get_logprobs(sequence):
+            context_stack = [S]
+            depth_stack = [0]
+            max_depth = 0
+            for i in sequence:
+                current = context_stack.pop()
+                depth = depth_stack.pop()
+                # Skip when there's only 1 possibility since no sampling is necessary
+                # Since the grammar is correctly defined we should never pop an empty stack
+                while len(self.list_derivations[current]) == 1:
+                    current = context_stack.pop()
+                    depth = depth_stack.pop()
+                max_depth = max(depth, max_depth)
+                # Get the derivation
+                P = self.list_derivations[current][i]
+                args_P, w = self.rules[current][P]
+                if len(args_P) > 0:
+                    for arg in args_P:
+                        context_stack.append(arg)
+                        depth_stack.append(depth + 1)
+                # We can discard terminals since no further sampling is required
+            # The depth check should be useless but we never know
+            if len(context_stack) == 0 or max_depth > authorized_depth:
+                return None
+            # Pop the current context
+            current = context_stack.pop()
+            # If there's only 1 derivation skip
+            while context_stack and len(self.list_derivations[current]) == 1:
+                current = context_stack.pop()
+            if len(self.list_derivations[current]) == 1:
+                return None
+            # Give log probs
+            return np.log(np.array([self.rules[current][P][1] for P in self.list_derivations[current]], dtype=float))
+
+        gen = SequenceGenerator(get_logprobs, max_categories, seed)
+
+        # int list -> Program cons list
+        def seq2prog(sequence):
+            context_stack = [S]
+            # Stack of functions
+            call_stack = []
+            # Stack of valid programs
+            program = None
+            for i in sequence:
+                current = context_stack.pop()
+                # We need to manage cases when there's only 1 derivation possible because we don't need sampling
+                while len(self.list_derivations[current]) == 1:
+                    P = self.list_derivations[current][0]
+                    args_P, w = self.rules[current][P]
+                    program = (P, program)
+                    if len(args_P) > 0:
+                        # Add new function to do
+                        for arg in args_P:
+                            context_stack.append(arg)
+                    current = context_stack.pop()
+
+                P = self.list_derivations[current][i]
+                args_P, w = self.rules[current][P]
+                program = (P, program)
+                if len(args_P) > 0:
+                    # Add new function to do
+                    for arg in args_P:
+                        context_stack.append(arg)
+            # Context stack may contain potentially a lot of calls with 1 possible derivation
+            while context_stack:
+                current = context_stack.pop()
+                assert len(self.list_derivations[current]) == 1
+                P = self.list_derivations[current][0]
+                args_P, w = self.rules[current][P]
+                program = (P, program)
+                if len(args_P) > 0:
+                    # Add new function to do
+                    for arg in args_P:
+                        context_stack.append(arg)
+            assert not call_stack
+            return program
+
+        def sampler(batch_size):
+            if gen.is_exhausted():
+                return []
+            sequences = sample(gen, batch_size)
+            return [seq2prog(seq) for seq in sequences]
+
+        return sampler
