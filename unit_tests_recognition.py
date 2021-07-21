@@ -49,9 +49,14 @@ class TestSum(unittest.TestCase):
                                       min_variable_depth=2,
                                       n_gram = 1)
 
-        H = 128 # hidden size of neural network
+        list_variables = [
+        Variable(i, type_, probability={})
+        for i,type_ in enumerate(type_request.arguments())
+        ]
 
-        fe = RecurrentFeatureExtractor(lexicon=list(range(10)),
+        H = 128 # hidden size of neural network
+        lexicon = list(range(10)) # all elements in range(10)
+        fe = RecurrentFeatureExtractor(lexicon=lexicon,
                                        H=H,
                                        bidirectional=True)
 
@@ -63,7 +68,8 @@ class TestSum(unittest.TestCase):
         Q_predictor = Q_Predictor(
             fe,
             template_dsl=template_dsl,
-            template_cfg=template_cfg
+            template_cfg=template_cfg,
+            list_variables=list_variables,
             )
 
         programs = [
@@ -76,203 +82,134 @@ class TestSum(unittest.TestCase):
 
         tasks = [[ex]]
 
+        # PCFG_predictor.train(programs, tasks)
+        # PCFG_predictor.test(programs, tasks)
+        # Q_predictor.train(programs, tasks)
+        # Q_predictor.test(programs, tasks)
+
+    def test_predictions_with_inputs(self):
+        t0 = PolymorphicType('t0')
+        t1 = PolymorphicType('t1')
+        primitive_types = {
+            "if": Arrow(BOOL, Arrow(INT, INT)),
+            "+": Arrow(INT, Arrow(INT, INT)),
+            "0": INT,
+            "1": INT,
+            "and": Arrow(BOOL, Arrow(BOOL, BOOL)),
+            "lt": Arrow(INT, Arrow(INT, BOOL)),
+            "map": Arrow(Arrow(t0, t1), Arrow(List(t0), List(t1))),
+        }
+
+        semantics = {
+            "if": lambda b: lambda x: lambda y: x if b else y,
+            "+": lambda x: lambda y: x + y,
+            "0": 0,
+            "1": 1,
+            "and": lambda b1: lambda b2: b1 and b2,
+            "lt": lambda x: lambda y: x <= y,
+            "map": lambda l: list(map(f, l)),
+        }
+
+        template_dsl = DSL(semantics, primitive_types)
+        type_request = Arrow(List(INT), List(INT))
+        template_cfg = template_dsl.DSL_to_CFG(type_request=type_request, 
+                                      upper_bound_type_size=10,
+                                      max_program_depth=4, 
+                                      min_variable_depth=1,
+                                      n_gram = 1)
+
+        H = 128 # hidden size of neural network
+        lexicon = list(range(10))
+        fe = RecurrentFeatureExtractor(lexicon=lexicon,
+                                       H=H,
+                                       bidirectional=True)
+
+        list_variables = [
+        Variable(i, type_, probability={})
+        for i,type_ in enumerate(type_request.arguments())
+        ]
+
+        PCFG_predictor = PCFG_Predictor(
+            fe,
+            template_cfg=template_cfg
+            )
+
+        Q_predictor = Q_Predictor(
+            fe,
+            template_dsl=template_dsl,
+            template_cfg=template_cfg,
+            list_variables=list_variables,
+            )
+
+        programs = [
+            Function(
+                BasicPrimitive("map", Arrow(Arrow(INT, INT), Arrow(List(INT), List(INT)))),
+                [
+                Function(
+                    BasicPrimitive("+", Arrow(INT, Arrow(INT, INT))), 
+                    [BasicPrimitive("1", INT)], 
+                    Arrow(INT, INT)
+                    ),
+                Variable(0, List(INT))
+                ],
+                List(INT)
+                ),
+
+            Function(
+                BasicPrimitive("map", Arrow(Arrow(INT, INT), Arrow(List(INT), List(INT)))),
+                [
+                Function(
+                    BasicPrimitive("+", Arrow(INT, Arrow(INT, INT))), 
+                    [Function(
+                        BasicPrimitive("+", Arrow(INT, Arrow(INT, INT))), 
+                        [BasicPrimitive("1", INT), BasicPrimitive("1", INT)],
+                        INT),
+                    ],
+                    Arrow(INT, INT)
+                    ),
+                Variable(0, List(INT))
+                ],
+                List(INT)
+                )
+            ]
+
+        # each task is a list of I/O
+        # each I/O is a tuple of input, output
+        # each output is a list whose members are elements of self.lexicon
+        # each input is a tuple of lists, and each member of each such list is an element of self.lexicon
+
+        x = ([4,4,2],) # input
+        y = [5,5,3] # output
+        ex1 = (x,y) # a single input/output example
+
+        x = ([7,1],) # input
+        y = [8,2] # output
+        ex2 = (x,y) # a single input/output example
+
+        task1 = [ex1,ex2] # a task is a list of input/outputs
+
+        x = ([4,4,2],) # input
+        y = [6,6,4] # output
+        ex1 = (x,y) # a single input/output example
+
+        task2 = [ex1] # a task is a list of input/outputs
+
+        assert fe.forward_one_task(task1).shape == torch.Size([H])
+        # batched forward pass - test cases
+        assert fe.forward([task1,task2]).shape == torch.Size([2,H])
+        assert torch.all( fe.forward([task1,task2])[0] == fe.forward_one_task(task1) )
+        assert torch.all( fe.forward([task1,task2])[1] == fe.forward_one_task(task2) )
+
+        # pooling of examples happens through averages - check via this assert
+        assert(torch.stack([fe.forward_one_task(task1),fe.forward_one_task(task1)],0).mean(0) - fe.forward_one_task(task1)).abs().max() < 1e-5
+        assert(torch.stack([fe.forward_one_task(task1),fe.forward_one_task(task2)],0).mean(0) - fe.forward_one_task(task1)).abs().max() > 1e-5
+
+        tasks = [task1,task2]
+
         PCFG_predictor.train(programs, tasks)
         PCFG_predictor.test(programs, tasks)
         Q_predictor.train(programs, tasks)
         Q_predictor.test(programs, tasks)
-
-    # def test_predictions_with_inputs(self):
-    #     primitive_types = {
-    #         "if": Arrow(BOOL, Arrow(INT, INT)),
-    #         "+": Arrow(INT, Arrow(INT, INT)),
-    #         "0": INT,
-    #         "1": INT,
-    #         "and": Arrow(BOOL, Arrow(BOOL, BOOL)),
-    #         "lt": Arrow(INT, Arrow(INT, BOOL)),
-    #     }
-
-    #     semantics = {
-    #         "if": lambda b: lambda x: lambda y: x if b else y,
-    #         "+": lambda x: lambda y: x + y,
-    #         "0": 0,
-    #         "1": 1,
-    #         "and": lambda b1: lambda b2: b1 and b2,
-    #         "lt": lambda x: lambda y: x <= y,
-    #     }
-
-    #     template_dsl = DSL(semantics, primitive_types)
-    #     type_request = INT
-    #     template_cfg = template_dsl.DSL_to_CFG(type_request=type_request, 
-    #                                   upper_bound_type_size=4,
-    #                                   max_program_depth=4, 
-    #                                   min_variable_depth=2,
-    #                                   n_gram = 1)
-
-    #     H = 128 # hidden size of neural network
-
-    #     fe = RecurrentFeatureExtractor(lexicon=list(range(10)),
-    #                                    H=H,
-    #                                    bidirectional=True)
-
-    #     PCFG_predictor = PCFG_Predictor(
-    #         fe,
-    #         template_cfg=template_cfg
-    #         )
-
-    #     Q_predictor = Q_Predictor(
-    #         fe,
-    #         template_dsl=template_dsl,
-    #         template_cfg=template_cfg
-    #         )
-
-    #     programs = [
-    #         Function(BasicPrimitive("+", Arrow(INT, Arrow(INT, INT))),[BasicPrimitive("0", INT),BasicPrimitive("1", INT)], INT),
-    #         ]
-
-    #     x = [] # input
-    #     y = [] # output
-    #     ex = (x,y) # a single input/output example
-
-    #     tasks = [[ex]]
-
-    #     PCFG_predictor.train(programs, tasks)
-    #     PCFG_predictor.test(programs, tasks)
-    #     # Q_predictor.train(programs, tasks)
-    #     # Q_predictor.test(programs, tasks)
-
-    # def test_programs(self):
-    #     H = 128 # hidden size of neural network
-
-    #     fe = RecurrentFeatureExtractor(lexicon=list(range(10)),
-    #                                    H=H,
-    #                                    bidirectional=True)
-
-    #     primitive_types = {
-    #         "if": Arrow(BOOL, Arrow(INT, INT)),
-    #         "+": Arrow(INT, Arrow(INT, INT)),
-    #         "0": INT,
-    #         "1": INT,
-    #         "and": Arrow(BOOL, Arrow(BOOL, BOOL)),
-    #         "lt": Arrow(INT, Arrow(INT, BOOL)),
-    #     }
-
-    #     semantics = {
-    #         "if": lambda b: lambda x: lambda y: x if b else y,
-    #         "+": lambda x: lambda y: x + y,
-    #         "0": 0,
-    #         "1": 1,
-    #         "and": lambda b1: lambda b2: b1 and b2,
-    #         "lt": lambda x: lambda y: x <= y,
-    #     }
-
-    #     template_dsl = DSL(semantics, primitive_types)
-    #     type_request = INT
-    #     template_cfg = template_dsl.DSL_to_CFG(type_request=type_request, 
-    #                                   upper_bound_type_size=4,
-    #                                   max_program_depth=4, 
-    #                                   min_variable_depth=2,
-    #                                   n_gram = 1)
-
-    #     programs = [
-    #         Function(BasicPrimitive("+", Arrow(INT, Arrow(INT, INT))),[BasicPrimitive("0", INT),BasicPrimitive("1", INT)], INT),
-    #         BasicPrimitive("0", INT),
-    #         BasicPrimitive("1", INT)
-    #         ]
-
-    #     # programs = [
-    #     #     Function(
-    #     #         BasicPrimitive("+", Arrow(INT, Arrow(INT, INT))), 
-    #     #         [BasicPrimitive("1", INT)], 
-    #     #         Arrow(INT, INT)),
-
-    #     #     Function(
-    #     #         BasicPrimitive("+", Arrow(INT, Arrow(INT, INT))), 
-    #     #         [Function(
-    #     #             BasicPrimitive("+", Arrow(INT, Arrow(INT, INT))), 
-    #     #             [BasicPrimitive("1", INT), BasicPrimitive("1", INT)],
-    #     #             INT),
-    #     #         ],
-    #     #         Arrow(INT, INT))
-    #     #     ]
-
-    #     # x = [4] # input
-    #     # y = [5] # output
-    #     # ex1 = (x,y) # a single input/output example
-
-    #     # x = [9] # input
-    #     # y = [10] # output
-    #     # ex2 = (x,y) # a single input/output example
-
-    #     # task1 = [ex1,ex2] # a task is a list of input/outputs
-
-    #     # x = [8] # input
-    #     # y = [10] # output
-    #     # ex1 = (x,y) # a single input/output example
-
-    #     # task2 = [ex1] # a task is a list of input/outputs
-
-    #     # tasks = [task1,task2]
-
-    #     xs = ([1,9,7],[8,8,7]) # inputs
-    #     y = [4] # output
-    #     ex1 = (xs,y) # some input/output example
-
-    #     xs = ([1,3,7],[1,7]) # inputs
-    #     y = [6] # output
-    #     ex2 = (xs,y) # another input/output example
-
-    #     task = [ex1,ex2] # a task is a list of input/outputs
-    #     task2 = [ex1]
-    #     task3 = [ex2]
-
-    #     assert fe.forward_one_task( task).shape == torch.Size([H])
-    #     # batched forward pass - test cases
-    #     assert fe.forward([task,task2,task3]).shape == torch.Size([3,H])
-    #     assert torch.all( fe.forward([task,task2,task3])[0] == fe.forward_one_task(task) )
-    #     assert torch.all( fe.forward([task,task2,task3])[1] == fe.forward_one_task(task2) )
-    #     assert torch.all( fe.forward([task,task2,task3])[2] == fe.forward_one_task(task3) )
-
-    #     # pooling of examples happens through averages - check via this assert
-    #     assert(torch.stack([fe.forward_one_task(task3),fe.forward_one_task(task2)],0).mean(0) - fe.forward_one_task(task)).abs().max() < 1e-5
-    #     assert(torch.stack([fe.forward_one_task(task),fe.forward_one_task(task)],0).mean(0) - fe.forward_one_task(task3)).abs().max() > 1e-5
-
-    #     tasks = [task,task2,task3]
-
-    #     models = {
-    #     "has Q": RecognitionModel(
-    #         fe, 
-    #         template_dsl=template_dsl, 
-    #         template_cfg=template_cfg,
-    #         type_request=type_request
-    #         ),
-    #     "has no Q (directly predict probabilities)": RecognitionModel(
-    #         fe,
-    #         template_cfg=template_cfg
-    #         )
-    #     }
-
-    #     for model_name, model in models.items():
-    #         print("training model", model_name)
-    #         optimizer = torch.optim.Adam(model.parameters())
-
-    #         for step in range(200):
-    #             optimizer.zero_grad()
-    #             grammars = model(tasks)
-    #             likelihood = sum(g.log_probability_program(template_cfg.start, p)
-    #                              for g,p in zip(grammars, programs))
-    #             (-likelihood).backward()
-    #             optimizer.step()
-
-    #             if step % 100 == 0:
-    #                 print("optimization step", step, "\tlog likelihood ", likelihood)
-
-    #         grammars = model(tasks)
-    #         for g, p in zip(grammars, programs):
-    #             grammar = g.normalise()
-    #             print("predicted grammar", grammar)
-    #             print("intended program", p)
-    #             print("probability of the intended program", 
-    #                 grammar.probability_program(template_cfg.start, p))
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
