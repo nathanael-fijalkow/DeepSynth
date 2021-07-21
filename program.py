@@ -1,8 +1,7 @@
 import os
 import sys
 
-
-from type_system import *
+from type_system import Type, PolymorphicType, PrimitiveType, Arrow, List, UnknownType
 from cons_list import index
 
 # dictionary { number of environment : value }

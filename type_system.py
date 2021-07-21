@@ -5,8 +5,7 @@ import sys
 Objective: define a type system.
 A type can be either PolymorphicType, PrimitiveType, Arrow, or List
 '''
-import os
-import sys
+
 # make sure hash is deterministic
 hashseed = os.getenv('PYTHONHASHSEED')
 if not hashseed:
