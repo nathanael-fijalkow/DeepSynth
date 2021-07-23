@@ -11,6 +11,25 @@ from pcfg_logprob import LogProbPCFG
 device = 'cpu'
 # A block is a concatenation of a linear layer + a sigmoid
 
+# This is a "map_style" Dataset, it is also possible to define a Dataset with an iterator instead of a __getitem__ function (useful for streaming/random inputs/output pair) 
+class Data(torch.utils.data.Dataset):
+    def __init__(self, tasks, programs, transform=None):
+        self.tasks = tasks
+        self.programs = programs
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.tasks)
+
+    def __getitem__(self, index):
+        x = self.tasks[index]
+        y = self.programs[index]
+        if self.transform:
+            x = self.transform.embed_all_examples(x)
+            y = self.transform.embed_program(y)
+        return x, y
+
+
 
 def block(input_dim, output_dim):
     return nn.Sequential(
@@ -99,17 +118,18 @@ class Net(nn.Module):
                 optimizer.step()
 
             if step % 100 == 0:
-                logging.debug("optimization step {}\tbinary cross entropy {}".format(step, float(loss_value)))
-
+                logging.debug("optimization step {}\tbinary cross entropy {}".format(
+                    step, float(loss_value)))
 
     def test(self, programs, tasks):
         for task, program in zip(tasks, programs):
-            grammar = self.forward_grammar(self.embedder.embed_all_examples(task))
+            grammar = self.forward_grammar(
+                self.embedder.embed_all_examples(task))
             # grammar = grammar.normalise()
             # program = self.embedder.embed_program(program)
             # print("predicted grammar {}".format(grammar))
-            print("intended program {}\nprobability {}".format(program, grammar.probability_program(self.template_cfg.start, program)))
-
+            print("intended program {}\nprobability {}".format(
+                program, grammar.probability_program(self.template_cfg.start, program)))
 
 
 class Embedding():
@@ -133,7 +153,8 @@ class Embedding():
         self.io_dim = 2*size_max*(1+nb_inputs_max)
         self.output_dim = 0
         counter = 0
-        self.hash_table = {} # self.hash_table[(S,P)] ::= position of the transition (S,P) in the final layer of the neural network
+        # self.hash_table[(S,P)] ::= position of the transition (S,P) in the final layer of the neural network
+        self.hash_table = {}
         for S in template_cfg.rules:
             self.output_dim += len(template_cfg.rules[S])
             for P in template_cfg.rules[S]:
@@ -204,8 +225,8 @@ class Embedding():
             res.append(self.embed_IO(IO))
         return torch.stack(res)
 
-
 # Example of use
+
 
 primitive_types = {
     "if": Arrow(BOOL, Arrow(INT, INT)),
@@ -255,7 +276,7 @@ print(x)
 NN = Net(template_cfg, E, 10)  # a model with hidden layers of size 10
 print(NN(x))  # a forward pass: return the array of transition probabilities
 # a forward pass + the reconstruction of the grammar
-#print(NN.forward_grammar(x))
+# print(NN.forward_grammar(x))
 
 
 # --------- LEARNING, a toy example
@@ -275,7 +296,7 @@ loss = torch.nn.BCELoss(reduction='mean')
 
 # Models
 model = Net(template_cfg, E, 10)
-trainset = [(model.embedder.embed_all_examples([IO,IO]), model.embedder.embed_program(programs[0])),
+trainset = [(model.embedder.embed_all_examples([IO, IO]), model.embedder.embed_program(programs[0])),
             (model.embedder.embed_all_examples([IO2]), model.embedder.embed_program(programs[1]))]
 # to use a saved model
 # M = torch.load(PATH_IN)
@@ -296,11 +317,22 @@ for epoch in range(EPOCHS):
         loss_value.backward()
         optimizer.step()
 
-print('\ntheoretical transitions:\n',E.embed_program(programs[0])) 
+print('\ntheoretical transitions:\n', E.embed_program(programs[0]))
 print('\n\npredicted transitions:\n', model(E.embed_all_examples([IO])))
-print('\n\ndifferences:\n', E.embed_program(programs[0])-model(E.embed_all_examples([IO])))
-print('\n\nAssociated grammar:\n', model.forward_grammar(E.embed_all_examples([IO])))
+print('\n\ndifferences:\n', E.embed_program(
+    programs[0])-model(E.embed_all_examples([IO])))
+print('\n\nAssociated grammar:\n',
+      model.forward_grammar(E.embed_all_examples([IO])))
 G = model.forward_grammar(E.embed_all_examples([IO]))
-tasks = [[IO, IO], [IO2]]
+tasks = [[IO], [IO2]]
 model.test(programs, tasks)
 # torch.save(model, PATH_OUT)
+
+training = Data(tasks, programs, E)
+X, y = training.__getitem__(0)
+from torch.utils.data import DataLoader
+
+train_dataloader = DataLoader(training, batch_size=2, shuffle=True)
+
+for train_features, train_labels in train_dataloader: #it comes in batch
+    print(train_features, train_labels)
