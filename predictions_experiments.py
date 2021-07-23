@@ -1,11 +1,14 @@
+
+import logging
 from dsl import DSL
 from program import Program, Function, Variable, BasicPrimitive, New
 from type_system import Type, PolymorphicType, PrimitiveType, Arrow, List, UnknownType, INT, BOOL
 import torch
 from torch import nn
+from pcfg import PCFG
+from pcfg_logprob import LogProbPCFG
 
 device = 'cpu'
-
 # A block is a concatenation of a linear layer + a sigmoid
 
 
@@ -80,7 +83,33 @@ class Net(nn.Module):
         grammars.append(rules)
 
         # ?TODO? maybe normalize the grammar before outputing it??
-        return grammars
+        # return grammars
+        return PCFG(template_cfg.start, rules, max_program_depth=template_cfg.max_program_depth)
+
+    def train(self, data, epochs=200):
+        optimizer = torch.optim.Adam(self.parameters())
+
+        for step in range(epochs):
+            for data in trainset:  # batch of data
+                X, y = data
+                optimizer.zero_grad()
+                output = self(X)
+                loss_value = loss(output, y)
+                loss_value.backward()
+                optimizer.step()
+
+            if step % 100 == 0:
+                logging.debug("optimization step {}\tbinary cross entropy {}".format(step, float(loss_value)))
+
+
+    def test(self, programs, tasks):
+        for task, program in zip(tasks, programs):
+            grammar = self.forward_grammar(self.embedder.embed_all_examples(task))
+            # grammar = grammar.normalise()
+            # program = self.embedder.embed_program(program)
+            # print("predicted grammar {}".format(grammar))
+            print("intended program {}\nprobability {}".format(program, grammar.probability_program(self.template_cfg.start, program)))
+
 
 
 class Embedding():
@@ -125,9 +154,10 @@ class Embedding():
             tensor[self.hash_table[(S, F)]] += 1
             for i, arg in enumerate(args_P):
                 self.embed_program(
-                    arg, self.template_cfg.rules[S][F][0], tensor)
+                    arg, self.template_cfg.rules[S][F][i], tensor)
 
         if isinstance(program, (BasicPrimitive, Variable)):
+            print(S)
             tensor[self.hash_table[(S, program)]] += 1
 
         if S == self.template_cfg.start:
@@ -225,7 +255,7 @@ print(x)
 NN = Net(template_cfg, E, 10)  # a model with hidden layers of size 10
 print(NN(x))  # a forward pass: return the array of transition probabilities
 # a forward pass + the reconstruction of the grammar
-print(NN.forward_grammar(x))
+#print(NN.forward_grammar(x))
 
 
 # --------- LEARNING, a toy example
@@ -238,7 +268,7 @@ torch.device(device)
 # path to save the model after the training
 # PATH_OUT = "saved_models/test_" + str(datetime.datetime.now())
 
-EPOCHS = 3000
+EPOCHS = 1_000
 
 # Loss
 loss = torch.nn.BCELoss(reduction='mean')
@@ -268,6 +298,9 @@ for epoch in range(EPOCHS):
 
 print('\ntheoretical transitions:\n',E.embed_program(programs[0])) 
 print('\n\npredicted transitions:\n', model(E.embed_all_examples([IO])))
+print('\n\ndifferences:\n', E.embed_program(programs[0])-model(E.embed_all_examples([IO])))
 print('\n\nAssociated grammar:\n', model.forward_grammar(E.embed_all_examples([IO])))
-
+G = model.forward_grammar(E.embed_all_examples([IO]))
+tasks = [[IO, IO], [IO2]]
+model.test(programs, tasks)
 # torch.save(model, PATH_OUT)
