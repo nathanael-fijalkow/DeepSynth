@@ -19,7 +19,7 @@ class Object_sampler():
 
     def sample(self, type = 'list_int'):
         if type == 'list_int':
-            size = random.randint(0,self.max_size)
+            size = random.randint(1,self.max_size)
             res = [random.randint(self.min_int,self.max_int) for _ in range(size)]
             return res
         assert(False)
@@ -80,6 +80,7 @@ class Dataset(torch.utils.data.IterableDataset):
         """
         a condition to accept or reject a tensor for the dataset
         """
+        if len(tensor)==0: return False
         for e in tensor:
             if not(self.object_sampler.max_int <= e and e <= self.object_sampler.max_int):
                 return False
