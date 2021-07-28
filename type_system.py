@@ -176,7 +176,7 @@ class PolymorphicType(Type):
         self.hash = hash(name)
 
     def __repr__(self):
-        return str(self.name)
+        return format(self.name)
 
 class PrimitiveType(Type):
     def __init__(self, type_):
@@ -186,7 +186,7 @@ class PrimitiveType(Type):
 
 
     def __repr__(self):
-        return str(self.type)
+        return format(self.type)
 
 class Arrow(Type):
     def __init__(self, type_in, type_out):
@@ -195,12 +195,10 @@ class Arrow(Type):
         self.type_in = type_in
         self.type_out = type_out
         self.hash = hash((type_in.hash,type_out.hash))
-        # self.hash = hash(str(self))
-
 
     def __repr__(self):
-        rep_in = repr(self.type_in)
-        rep_out = repr(self.type_out)
+        rep_in = format(self.type_in)
+        rep_out = format(self.type_out)
         return "({} -> {})".format(rep_in, rep_out)
 
 class List(Type):

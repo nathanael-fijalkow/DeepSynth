@@ -5,7 +5,7 @@ import sys
 
 import vose
 
-from type_system import *
+from type_system import Type, PolymorphicType, PrimitiveType, Arrow, List, UnknownType, INT, BOOL
 from program import Program, Function, Variable, BasicPrimitive, New
 
 # make sure hash is deterministic
@@ -17,6 +17,7 @@ if not hashseed:
 class PCFG:
     """
     Object that represents a probabilistic context-free grammar
+    with normalised weights
 
     rules: a dictionary of type {S: D}
     with S a non-terminal and D a dictionary : {P : l, w}
@@ -35,28 +36,34 @@ class PCFG:
     for all programs appearing in max_probability
     """
 
-    def __init__(self, start, rules, max_program_depth=4):
+    def __init__(self, start, rules, max_program_depth, clean = False):
         self.start = start
         self.rules = rules
         self.max_program_depth = max_program_depth
 
-        self.hash = hash(format(rules))
+        self.hash = hash(str(rules))
 
-        self.remove_non_productive(max_program_depth)
-        self.remove_non_reachable(max_program_depth)
+        if clean:
+            self.remove_non_productive()
+            self.remove_non_reachable()
+            self.normalise()
 
-        for S in self.rules:
-            s = sum([self.rules[S][P][1] for P in self.rules[S]])
+    def __hash__(self):
+        return self.hash
+
+    def __str__(self):
+        s = "Print a PCFG\n"
+        s += "start: {}\n".format(self.start)
+        for S in reversed(self.rules):
+            s += "#\n {}\n".format(S)
             for P in self.rules[S]:
                 args_P, w = self.rules[S][P]
-                self.rules[S][P] = (args_P, w / s)
+                s += "   {} - {}: {}     {}\n".format(P, P.type, args_P, w)
+        return s
 
-        self.hash_table_programs = {}
-        self.max_probability = {}
-        self.compute_max_probability()
-
-        self.list_derivations = {}
+    def init_vose(self):
         self.vose_samplers = {}
+        self.list_derivations = {}
 
         for S in self.rules:
             self.list_derivations[S] = sorted(
@@ -64,7 +71,14 @@ class PCFG:
             )
             self.vose_samplers[S] = vose.Sampler(
                 np.array([self.rules[S][P][1] for P in self.list_derivations[S]],dtype=np.float)
-            )            
+            )
+
+    def normalise(self):
+        for S in self.rules:
+            s = sum([self.rules[S][P][1] for P in self.rules[S]])
+            for P in self.rules[S]:
+                args_P, w = self.rules[S][P]
+                self.rules[S][P] = (args_P, w / s)
 
     def return_unique(self, P):
         """
@@ -77,7 +91,7 @@ class PCFG:
             self.hash_table_programs[P.hash] = P
             return P
 
-    def remove_non_productive(self, max_program_depth=4):
+    def remove_non_productive(self):
         """
         remove non-terminals which do not produce programs
         """
@@ -96,7 +110,7 @@ class PCFG:
             else:
                 del self.rules[S]
 
-    def remove_non_reachable(self, max_program_depth=4):
+    def remove_non_reachable(self):
         """
         remove non-terminals which are not reachable from the initial non-terminal
         """
@@ -107,7 +121,7 @@ class PCFG:
         new_reach = set()
         reach.add(self.start)
 
-        for i in range(max_program_depth):
+        for i in range(self.max_program_depth):
             new_reach.clear()
             for S in reach:
                 for P in self.rules[S]:
@@ -124,8 +138,11 @@ class PCFG:
 
     def compute_max_probability(self):
         """
-        populates the dictionary max_probability
+        populates a dictionary max_probability
         """
+        self.hash_table_programs = {}
+        self.max_probability = {}
+
         for S in reversed(self.rules):
             best_program = None
             best_probability = 0
@@ -137,9 +154,9 @@ class PCFG:
                 if len(args_P) == 0:
                     self.max_probability[(S, P)] = P_unique
                     P_unique.probability[(self.__hash__(), S)] = w
-                    assert P_unique.probability[
-                        (self.__hash__(), S)
-                    ] == self.probability_program(S, P_unique)
+                    # assert P_unique.probability[
+                    #     (self.__hash__(), S)
+                    # ] == self.probability_program(S, P_unique)
 
                 else:
                     new_program = Function(
@@ -153,9 +170,9 @@ class PCFG:
                     for arg in args_P:
                         probability *= self.max_probability[arg].probability[(self.__hash__(), arg)]
                     self.max_probability[(S, P)] = P_unique
-                    assert (self.__hash__(), S) not in P_unique.probability
+                    # assert (self.__hash__(), S) not in P_unique.probability
                     P_unique.probability[(self.__hash__(), S)] = probability
-                    assert probability == self.probability_program(S, P_unique)
+                    # assert probability == self.probability_program(S, P_unique)
 
                 if (
                     self.max_probability[(S, P)].probability[(self.__hash__(), S)]
@@ -166,40 +183,28 @@ class PCFG:
                         (self.__hash__(), S)
                     ]
 
-            assert best_probability > 0
+            # assert best_probability > 0
             self.max_probability[S] = best_program
 
-    def __getstate__(self):
-        state = dict(self.__dict__)
-        del state["vose_samplers"]
-        return state
+    # def __getstate__(self):
+    #     state = dict(self.__dict__)
+    #     del state["vose_samplers"]
+    #     return state
 
-    def __setstate__(self, d):
-        self.__dict__ = d
-        self.vose_samplers = {
-            S: vose.Sampler(
-                np.array([self.rules[S][P][1] for P in self.list_derivations[S]])
-            )
-            for S in self.rules
-        }
-
-    def __hash__(self):
-        return self.hash
-
-    def __repr__(self):
-        s = "Print a PCFG\n"
-        s += "start: {}\n".format(self.start)
-        for S in reversed(self.rules):
-            s += "#\n {}\n".format(S)
-            for P in self.rules[S]:
-                args_P, w = self.rules[S][P]
-                s += "   {} - {}: {}     {}\n".format(P, P.type, args_P, w)
-        return s
+    # def __setstate__(self, d):
+    #     self.__dict__ = d
+    #     self.vose_samplers = {
+    #         S: vose.Sampler(
+    #             np.array([self.rules[S][P][1] for P in self.list_derivations[S]])
+    #         )
+    #         for S in self.rules
+    #     }
 
     def sampling(self):
         """
         A generator that samples programs according to the PCFG G
         """
+        self.init_vose()
 
         while True:
             yield self.sample_program(self.start)
@@ -230,6 +235,8 @@ class PCFG:
 
         if isinstance(P, (Variable, BasicPrimitive, New)):
             return self.rules[S][P][1]
+
+        print("probability_program", P)
         assert False
 
     def get_sbsur_sampler(self, S=None, seed=None):
@@ -238,9 +245,11 @@ class PCFG:
         Returns a function: batch_size -> list[program]
         """
         from sbsur import SequenceGenerator, sample
+        self.clean()
+
         authorized_depth = self.max_program_depth - (1 if S is not None else 0)
         S = S or self.start
-        max_categories = max(len(self.list_derivations[x]) for x in self.rules)
+        max_categories = max(len(self.list_derivations[S]) for S in self.rules)
 
         # int list -> log probs | None
         def get_logprobs(sequence):

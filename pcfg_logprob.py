@@ -6,7 +6,7 @@ import sys
 
 import vose
 
-from type_system import *
+from type_system import Type, PolymorphicType, PrimitiveType, Arrow, List, UnknownType, INT, BOOL
 from program import Program, Function, Variable, BasicPrimitive, New
 from pcfg import PCFG
 
@@ -18,7 +18,7 @@ if not hashseed:
 
 class LogProbPCFG:
     """
-    Object that represents a probabilistic context-free grammar
+    Object that represents a probabilistic context-free grammar with lob probabilities
 
     rules: a dictionary of type {S: D}
     with S a non-terminal and D a dictionary : {P : l, w}
@@ -30,12 +30,16 @@ class LogProbPCFG:
         self.start = start
         self.rules = rules
         self.max_program_depth = max_program_depth
+        self.hash = hash(str(rules))
 
-        # self.hash = hash(format(rules))
-        # self.remove_non_productive(max_program_depth)
-        # self.remove_non_reachable(max_program_depth)
+    def __hash__(self):
+        return self.hash
 
-    def remove_non_productive(self, max_program_depth=4):
+    def clean(self):
+        self.remove_non_productive()
+        self.remove_non_reachable()
+
+    def remove_non_productive(self):
         """
         remove non-terminals which do not produce programs
         """
@@ -54,7 +58,7 @@ class LogProbPCFG:
             else:
                 del self.rules[S]
 
-    def remove_non_reachable(self, max_program_depth=4):
+    def remove_non_reachable(self):
         """
         remove non-terminals which are not reachable from the initial non-terminal
         """
@@ -65,7 +69,7 @@ class LogProbPCFG:
         new_reach = set()
         reach.add(self.start)
 
-        for i in range(max_program_depth):
+        for i in range(self.max_program_depth):
             new_reach.clear()
             for S in reach:
                 for P in self.rules[S]:
@@ -83,14 +87,14 @@ class LogProbPCFG:
     def __hash__(self):
         return self.hash
 
-    def __repr__(self):
+    def __str__(self):
         s = "Print a LogProbPCFG\n"
-        s += "start: {}\n".format(self.start)
+        s += "start: {}\n".str(self.start)
         for S in reversed(self.rules):
-            s += "#\n {}\n".format(S)
+            s += "#\n {}\n".str(S)
             for P in self.rules[S]:
                 args_P, w = self.rules[S][P]
-                s += "   {} - {}: {}     {}\n".format(P, P.type, args_P, w)
+                s += "   {} - {}: {}     {}\n".str(P, P.type, args_P, w)
         return s
 
     def log_probability_program(self, S, P):
@@ -110,8 +114,7 @@ class LogProbPCFG:
         assert False
 
     def normalise(self):
-        self.remove_non_productive(self.max_program_depth)
-        self.remove_non_reachable(self.max_program_depth)
+        self.clean()
         normalised_rules = {}
         for S in self.rules:
             s = sum(exp(self.rules[S][P][1].item()) for P in self.rules[S])

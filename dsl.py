@@ -1,12 +1,12 @@
-from type_system import *
-from program import *
-from cfg import *
-from pcfg import *
-
 from collections import deque
 import copy
-import time
+import random
+import numpy as np
 
+from type_system import Type, PolymorphicType, PrimitiveType, Arrow, List, UnknownType, INT, BOOL
+from program import Program, Function, Variable, BasicPrimitive, New
+from cfg import CFG
+from pcfg import PCFG
 
 class DSL:
     """
@@ -25,7 +25,7 @@ class DSL:
         self.no_repetitions = no_repetitions or set()
 
         for p in primitive_types:
-            formatted_p = format(p)
+            formatted_p = str(p)
             if formatted_p in semantics:
                 self.semantics[formatted_p] = semantics[formatted_p]
                 P = BasicPrimitive(
@@ -36,10 +36,10 @@ class DSL:
                 P = New(body=p.body, type_=primitive_types[p], probability={})
                 self.list_primitives.append(P)
 
-    def __repr__(self):
+    def __str__(self):
         s = "Print a DSL\n"
         for P in self.list_primitives:
-            s = s + "{}: {}\n".format(P, P.type)
+            s = s + "{}: {}\n".str(P, P.type)
         return s
 
     def instantiate_polymorphic_types(self, upper_bound_type_size=10):
@@ -99,7 +99,7 @@ class DSL:
         upper_bound_type_size=10,
         max_program_depth=4,
         min_variable_depth=1,
-        n_gram=1,
+        n_gram=2,
     ):
         """
         Constructs a CFG from a DSL imposing bounds on size of the types
@@ -112,10 +112,10 @@ class DSL:
 
         rules = {}
 
-        def repr(current_type, context, depth):
+        def encode_non_terminal(current_type, context, depth):
             if len(context) == 0:
                 return current_type, None, depth
-            if n_gram == 1:
+            if n_gram == 2:
                 return current_type, context[0], depth
             return current_type, context, depth
 
@@ -124,10 +124,10 @@ class DSL:
 
         while len(list_to_be_treated) > 0:
             current_type, context, depth = list_to_be_treated.pop()
-            non_terminal = repr(current_type, context, depth)
+            non_terminal = encode_non_terminal(current_type, context, depth)
 
             # a non-terminal is a triple (type, context, depth)
-            # if n_gram = 0 context = None
+            # if n_gram == 1 then context = None
             # otherwise context is a list of (primitive, number_argument)
             # print("\ncollecting from the non-terminal ", non_terminal)
 
@@ -159,10 +159,10 @@ class DSL:
                         for i, arg in enumerate(arguments_P):
                             new_context = context.copy()
                             new_context = [(P, i)] + new_context
-                            if len(new_context) > n_gram:
+                            if len(new_context) > n_gram - 1:
                                 new_context.pop()
                             decorated_arguments_P.append(
-                                repr(arg, new_context, depth + 1)
+                                encode_non_terminal(arg, new_context, depth + 1)
                             )
                             if (arg, new_context, depth + 1) not in list_to_be_treated:
                                 list_to_be_treated.appendleft(
@@ -171,68 +171,8 @@ class DSL:
 
                         rules[non_terminal][P] = decorated_arguments_P
 
-        # print(rules)
         return CFG(
             start=(return_type, None, 0),
             rules=rules,
             max_program_depth=max_program_depth,
-        )
-
-    def DSL_to_Uniform_PCFG(
-        self,
-        type_request,
-        upper_bound_type_size=10,
-        max_program_depth=4,
-        min_variable_depth=1,
-        n_gram=1,
-    ):
-        CFG = self.DSL_to_CFG(
-            type_request,
-            upper_bound_type_size,
-            max_program_depth,
-            min_variable_depth,
-            n_gram,
-        )
-        augmented_rules = {}
-        for S in CFG.rules:
-            augmented_rules[S] = {}
-            p = len(CFG.rules[S])
-            for P in CFG.rules[S]:
-                augmented_rules[S][P] = (CFG.rules[S][P], 1 / p)
-        return PCFG(
-            start=CFG.start, rules=augmented_rules, max_program_depth=max_program_depth
-        )
-
-    def DSL_to_Random_PCFG(
-        self,
-        type_request,
-        upper_bound_type_size=10,
-        max_program_depth=4,
-        min_variable_depth=1,
-        n_gram=1,
-        alpha=0.7,
-    ):
-        CFG = self.DSL_to_CFG(
-            type_request,
-            upper_bound_type_size,
-            max_program_depth,
-            min_variable_depth,
-            n_gram,
-        )
-        new_rules = {}
-        for S in CFG.rules:
-            out_degree = len(CFG.rules[S])
-            # weights with alpha-exponential decrease
-            weights = [random.random() * (alpha ** i) for i in range(out_degree)]
-            s = sum(weights)
-            # normalization
-            weights = [w / s for w in weights]
-            random_permutation = list(
-                np.random.permutation([i for i in range(out_degree)])
-            )
-            new_rules[S] = {}
-            for i, P in enumerate(CFG.rules[S]):
-                new_rules[S][P] = (CFG.rules[S][P], weights[random_permutation[i]])
-        return PCFG(
-            start=CFG.start, rules=new_rules, max_program_depth=max_program_depth
         )

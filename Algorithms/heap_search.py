@@ -1,16 +1,12 @@
-import copy
-import functools
 from collections import deque
 from heapq import heappush, heappop
 
 from program import Program, Function, Variable
 from pcfg import PCFG
 
-
 def heap_search(G: PCFG):
     H = heap_search_object(G)
     return H.generator()
-
 
 class heap_search_object:
     def return_unique(self, P):
@@ -52,6 +48,10 @@ class heap_search_object:
         self.hash_table_global = {}
 
         # Initialisation heaps
+
+        ## 0. compute max probability
+        self.G.compute_max_probability()
+
         ## 1. add P(max(S1),max(S2), ...) to self.heaps[S] for all S -> P(S1, S2, ...)
         for S in reversed(self.rules):
             for P in self.rules[S]:

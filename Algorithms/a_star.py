@@ -1,4 +1,3 @@
-import time
 from collections import deque
 from heapq import heappush, heappop
 
@@ -10,6 +9,9 @@ def a_star(G: PCFG):
     A generator that enumerates all programs using A*.
     Assumes that the PCFG only generates programs of bounded depth.
     """
+
+    ## compute max probability
+    G.compute_max_probability()
 
     frontier = []
     initial_non_terminals = deque()

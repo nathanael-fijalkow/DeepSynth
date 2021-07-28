@@ -30,16 +30,7 @@ class Program:
             and self.typeless_eq(other)
         )
 
-    def typeless_eq(self, other, verbose=False):
-        if verbose:
-            print(
-                "checking:\n    1:{}\nclass: {}\n    2:{}\nclass: {}".format(
-                    self,
-                    self.__class__.__name__,
-                    other,
-                    other.__class__.__name__,
-                )
-            )
+    def typeless_eq(self, other):
         b = isinstance(self, Program) and isinstance(other, Program)
         b2 = (
             isinstance(self, Variable)
@@ -49,11 +40,11 @@ class Program:
         b2 = b2 or (
             isinstance(self, Function)
             and isinstance(other, Function)
-            and self.function.typeless_eq(other.function, verbose)
+            and self.function.typeless_eq(other.function)
             and len(self.arguments) == len(other.arguments)
             and all(
                 [
-                    x.typeless_eq(y, verbose)
+                    x.typeless_eq(y)
                     for x, y in zip(self.arguments, other.arguments)
                 ]
             )
@@ -71,7 +62,7 @@ class Program:
         b2 = b2 or (
             isinstance(self, New)
             and isinstance(other, New)
-            and (self.body).typeless_eq(other.body, verbose)
+            and (self.body).typeless_eq(other.body)
         )
         return b and b2
 
@@ -92,7 +83,6 @@ class Program:
 
 class Variable(Program):
     def __init__(self, variable, type_=UnknownType(), probability={}):
-        # self.variable is a natural number
         # assert isinstance(variable, int)
         self.variable = variable
         # assert isinstance(type_, Type)
@@ -231,6 +221,9 @@ class BasicPrimitive(Program):
         self.evaluation = {}
 
     def __repr__(self):
+        """
+        representation without type
+        """
         return format(self.primitive)
 
     def eval(self, dsl, environment, i):
@@ -270,33 +263,3 @@ class New(Program):
             return result
         except (IndexError, ValueError, TypeError):
             return None
-
-def reconstruct_from_list(program_as_list, target_type):
-    if len(program_as_list) == 1:
-        return program_as_list.pop()
-    else:
-        P = program_as_list.pop()
-        if isinstance(P, (New, BasicPrimitive)):
-            list_arguments = P.type.ends_with(target_type)
-            arguments = [None] * len(list_arguments)
-            for i in range(len(list_arguments)):
-                arguments[len(list_arguments) - i - 1] = reconstruct_from_list(
-                    program_as_list, list_arguments[len(list_arguments) - i - 1]
-                )
-            return Function(P, arguments)
-        if isinstance(P, Variable):
-            return P
-        assert False
-
-def reconstruct_from_compressed(program, target_type):
-    program_as_list = []
-    list_from_compressed(program, program_as_list)
-    program_as_list.reverse()
-    return reconstruct_from_list(program_as_list, target_type)
-
-
-def list_from_compressed(program, program_as_list=[]):
-    (P, sub_program) = program
-    if sub_program:
-        list_from_compressed(sub_program, program_as_list)
-    program_as_list.append(P)

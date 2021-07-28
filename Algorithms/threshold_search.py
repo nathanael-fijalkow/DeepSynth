@@ -5,7 +5,7 @@ from collections import deque
 from heapq import heappush, heappop
 import time 
 
-def bounded_threshold(G : PCFG, threshold = 0.0001):
+def bounded_threshold(G : PCFG, threshold):
     '''
     A generator that enumerates all programs with probability greater than the threshold
     '''

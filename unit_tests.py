@@ -2,17 +2,19 @@ import logging
 import unittest
 import random
 from math import sqrt
-
 from scipy.stats import chisquare
 
-import dsl as dsl
-from DSL.deepcoder import *
+from type_system import Type, PolymorphicType, PrimitiveType, Arrow, List, UnknownType, INT, BOOL, STRING
+from program import Program, Function, Variable, BasicPrimitive, New
+from program_as_list import evaluation_from_compressed, reconstruct_from_compressed
+
+from dsl import DSL
+from DSL.deepcoder import semantics,primitive_types
+
 from Algorithms.heap_search import heap_search
 from Algorithms.a_star import a_star
 from Algorithms.sqrt_sampling import sqrt_sampling, sqrt_sampling_with_sbsur
 from Algorithms.threshold_search import bounded_threshold
-from program_as_list import evaluation_from_compressed
-
 
 class TestSum(unittest.TestCase):
     def test_programs(self):
@@ -21,12 +23,15 @@ class TestSum(unittest.TestCase):
         """
         p1 = BasicPrimitive("MAP")
         p2 = BasicPrimitive("MAP", type_=PolymorphicType(name="test"))
+
         # checking whether they represent the same programs and same types
-        self.assertTrue(str(p1) == str(p2))
+        self.assertTrue(repr(p1) == repr(p2))
         self.assertTrue(p1.typeless_eq(p2))
         self.assertFalse(p1.__eq__(p2))
         self.assertFalse(id(p1) == id(p2))
 
+        t0 = PolymorphicType("t0")
+        t1 = PolymorphicType("t1")
         semantics = {
             "+1": lambda x: x + 1,
             "MAP": lambda f: lambda l: list(map(f, l)),
@@ -35,7 +40,7 @@ class TestSum(unittest.TestCase):
             "+1": Arrow(INT, INT),
             "MAP": Arrow(Arrow(t0, t1), Arrow(List(t0), List(t1))),
         }
-        toy_DSL = dsl.DSL(semantics, primitive_types)
+        toy_DSL = DSL(semantics, primitive_types)
 
         p0 = Function(BasicPrimitive("+1"), [Variable(0)])
         env = (2, None)
@@ -45,9 +50,9 @@ class TestSum(unittest.TestCase):
         env = ([2, 4], None)
         self.assertTrue(p1.eval(toy_DSL, env, 0) == [3, 5])
 
-    def test_construction_CFG(self):
+    def test_construction_CFG_toy(self):
         """
-        Checks the construction of a CFG from a DSL
+        Checks the construction of a CFG from a toy DSL
         """
         t0 = PolymorphicType("t0")
         t1 = PolymorphicType("t1")
@@ -63,13 +68,29 @@ class TestSum(unittest.TestCase):
             "SUCC": Arrow(INT, INT),
             "MAP": Arrow(Arrow(t0, t1), Arrow(List(t0), List(t1))),
         }
-        toy_DSL = dsl.DSL(semantics, primitive_types)
+        toy_DSL = DSL(semantics, primitive_types)
         type_request = Arrow(List(INT), List(INT))
         toy_CFG = toy_DSL.DSL_to_CFG(type_request)
         self.assertTrue(len(toy_CFG.rules) == 14)
         self.assertTrue(len(toy_CFG.rules[toy_CFG.start]) == 3)
 
-    def test_construction_PCFG1(self):
+    def test_construction_CFG_deepcoder(self):
+        """
+        Checks the construction of a PCFG from the DeepCoder DSL
+        """
+        deepcoder = DSL(semantics, primitive_types)
+        type_request = Arrow(List(INT), List(INT))
+        deepcoder_CFG = deepcoder.DSL_to_CFG(type_request)
+
+        # checks that all non-terminals are productive
+        for S in deepcoder_CFG.rules:
+            self.assertTrue(len(deepcoder_CFG.rules[S]) > 0)
+            for P in deepcoder_CFG.rules[S]:
+                args_P = deepcoder_CFG.rules[S][P]
+                for arg in args_P:
+                    self.assertTrue(arg in deepcoder_CFG.rules)
+
+    def test_construction_PCFG_toy(self):
         """
         Checks the construction of a PCFG from a DSL
         """
@@ -91,20 +112,11 @@ class TestSum(unittest.TestCase):
             "PRED": Arrow(INT, INT),
             "MAP": Arrow(Arrow(t0, t1), Arrow(List(t0), List(t1))),
         }
-        toy_DSL = dsl.DSL(semantics, primitive_types)
+        toy_DSL = DSL(semantics, primitive_types)
         type_request = Arrow(List(INT), List(INT))
-        toy_PCFG = toy_DSL.DSL_to_Uniform_PCFG(type_request)
-
-        # checks that all non-terminal are productive
-        for S in toy_PCFG.rules:
-            assert len(toy_PCFG.rules[S]) > 0
-            s = sum(w for (_, w) in toy_PCFG.rules[S].values())
-            for P in toy_PCFG.rules[S]:
-                args_P, w = toy_PCFG.rules[S][P]
-                assert w > 0
-                toy_PCFG.rules[S][P] = args_P, w / s
-                for arg in args_P:
-                    assert arg in toy_PCFG.rules
+        toy_CFG = toy_DSL.DSL_to_CFG(type_request)
+        toy_PCFG = toy_CFG.CFG_to_Uniform_PCFG()
+        toy_PCFG.compute_max_probability()
 
         max_program = Function(
             BasicPrimitive("MAP"),
@@ -113,6 +125,7 @@ class TestSum(unittest.TestCase):
                 Function(BasicPrimitive("MAP"), [BasicPrimitive("RANGE"), Variable(0)]),
             ],
         )
+
         self.assertTrue(
             toy_PCFG.max_probability[toy_PCFG.start].typeless_eq(max_program)
         )
@@ -124,13 +137,15 @@ class TestSum(unittest.TestCase):
                 == toy_PCFG.probability_program(S, max_program)
             )
 
-    def test_construction_PCFG2(self):
+    def test_construction_PCFG_deepcoder(self):
         """
         Checks the construction of a PCFG from a DSL
         """
-        deepcoder = dsl.DSL(semantics, primitive_types)
+        deepcoder = DSL(semantics, primitive_types)
         type_request = Arrow(List(INT), List(INT))
-        deepcoder_PCFG = deepcoder.DSL_to_Random_PCFG(type_request)
+        deepcoder_CFG = deepcoder.DSL_to_CFG(type_request)
+        deepcoder_PCFG = deepcoder_CFG.CFG_to_Random_PCFG()
+        deepcoder_PCFG.compute_max_probability()
 
         for S in deepcoder_PCFG.rules:
             max_program = deepcoder_PCFG.max_probability[S]
@@ -157,12 +172,14 @@ class TestSum(unittest.TestCase):
         N = 10_000  # number of programs to be generated by heap search
         K = 1000  # number of programs to be sampled from the PCFG
 
-        deepcoder = dsl.DSL(semantics, primitive_types)
+        deepcoder = DSL(semantics, primitive_types)
         type_request = Arrow(List(INT), List(INT))
-        deepcoder_PCFG = deepcoder.DSL_to_Random_PCFG(type_request, alpha=0.7)
+        deepcoder_CFG = deepcoder.DSL_to_CFG(type_request)
+        deepcoder_PCFG = deepcoder_CFG.CFG_to_Random_PCFG()
 
         gen_heap_search = heap_search(deepcoder_PCFG)
         gen_sampling = deepcoder_PCFG.sampling()
+
         seen_sampling = set()
         seen_heaps = set()
 
@@ -201,12 +218,14 @@ class TestSum(unittest.TestCase):
         N = 10_000  # number of programs to be generated by heap search
         K = 1000  # number of programs to be sampled from the PCFG
 
-        deepcoder = dsl.DSL(semantics, primitive_types)
+        deepcoder = DSL(semantics, primitive_types)
         type_request = Arrow(List(INT), List(INT))
-        deepcoder_PCFG = deepcoder.DSL_to_Random_PCFG(type_request, alpha=0.7)
+        deepcoder_CFG = deepcoder.DSL_to_CFG(type_request)
+        deepcoder_PCFG = deepcoder_CFG.CFG_to_Random_PCFG()
 
         gen_a_star = a_star(deepcoder_PCFG)
         gen_sampling = deepcoder_PCFG.sampling()
+
         seen_sampling = set()
         seen_astar = set()
 
@@ -238,10 +257,10 @@ class TestSum(unittest.TestCase):
         """
         Check if threshold search does not miss any program and if it outputs programs above the given threshold
         """
-
-        deepcoder = dsl.DSL(semantics, primitive_types)
+        deepcoder = DSL(semantics, primitive_types)
         type_request = Arrow(List(INT), List(INT))
-        deepcoder_PCFG = deepcoder.DSL_to_Random_PCFG(type_request, alpha=0.7)
+        deepcoder_CFG = deepcoder.DSL_to_CFG(type_request)
+        deepcoder_PCFG = deepcoder_CFG.CFG_to_Random_PCFG()
 
         threshold = 0.00001
         gen_threshold = bounded_threshold(deepcoder_PCFG, threshold)
@@ -256,9 +275,7 @@ class TestSum(unittest.TestCase):
                     deepcoder_PCFG.start, program
                 )
                 self.assertLessEqual(threshold, proba_program)
-                seen_threshold.add(
-                    str(program)
-                )  # check if the program is above threshold
+                seen_threshold.add(str(program))
             except StopIteration:
                 break
         K = len(seen_threshold) // 5
@@ -268,8 +285,8 @@ class TestSum(unittest.TestCase):
         seen_sampling = set()
         while len(seen_sampling) < K:
             program = next(gen_sampling)
-            proba_t = deepcoder_PCFG.probability_program(deepcoder_PCFG.start, program)
-            if proba_t >= threshold:
+            proba_program = deepcoder_PCFG.probability_program(deepcoder_PCFG.start, program)
+            if proba_program >= threshold:
                 seen_sampling.add(str(program))
 
         diff = seen_sampling - seen_threshold
@@ -284,13 +301,12 @@ class TestSum(unittest.TestCase):
         L = 50  # we test the probabilities of the first L programs are ok
         alpha = 0.05  # threshold to reject the "H0 hypothesis"
 
-        deepcoder = dsl.DSL(semantics, primitive_types)
+        deepcoder = DSL(semantics, primitive_types)
         type_request = Arrow(List(INT), List(INT))
-        deepcoder_PCFG = deepcoder.DSL_to_Random_PCFG(type_request, alpha=0.7)
+        deepcoder_CFG = deepcoder.DSL_to_CFG(type_request)
+        deepcoder_PCFG = deepcoder_CFG.CFG_to_Random_PCFG()
 
-        gen_heap_search = heap_search(
-            deepcoder_PCFG
-        )  # to generate the L first programs
+        gen_heap_search = heap_search(deepcoder_PCFG)
         gen_sampling = deepcoder_PCFG.sampling()  # generator for sampling
 
         count = {}
@@ -327,26 +343,40 @@ class TestSum(unittest.TestCase):
         """
         Check if sqrt_sampling algorithm samples according to the correct probabilities
         """
-        K = 1_000_000  # number of samples from the L-th first programs
-        L = 50  # we test the probabilities of the first L programs are ok
+        L = 10  # we test that the probabilities of the first L programs are ok
+        K = 50_000  # number of samples
 
-        deepcoder = dsl.DSL(semantics, primitive_types)
+        t0 = PolymorphicType("t0")
+        t1 = PolymorphicType("t1")
+        semantics = {
+            "RANGE": (),
+            "HEAD": (),
+            "TAIL": (),
+            "SUCC": (),
+            "PRED": (),
+            "MAP": (),
+        }
+        primitive_types = {
+            "HEAD": Arrow(List(INT), INT),
+            "TAIL": Arrow(List(INT), INT),
+            "RANGE": Arrow(INT, List(INT)),
+            "SUCC": Arrow(INT, INT),
+            "PRED": Arrow(INT, INT),
+            "MAP": Arrow(Arrow(t0, t1), Arrow(List(t0), List(t1))),
+        }
+        toy_DSL = DSL(semantics, primitive_types)
         type_request = Arrow(List(INT), List(INT))
-        deepcoder_PCFG = deepcoder.DSL_to_Random_PCFG(type_request, alpha=0.6)
+        toy_CFG = toy_DSL.DSL_to_CFG(type_request)
+        toy_PCFG = toy_CFG.CFG_to_Random_PCFG(alpha = 0.8)
 
-        gen_heap_search = heap_search(
-            deepcoder_PCFG
-        )  # to generate the L first programs
-        gen_sqrt_sampling = sqrt_sampling(deepcoder_PCFG)  # generator for sqrt sampling
+        gen_heap_search = heap_search(toy_PCFG)  # to generate the L first programs
+        gen_sqrt_sampling = sqrt_sampling(toy_PCFG)  # generator for sqrt sampling
 
         count = {}
         for _ in range(L):
             program = next(gen_heap_search)
             count[str(program)] = [
-                K
-                * sqrt(
-                    deepcoder_PCFG.probability_program(deepcoder_PCFG.start, program)
-                ),
+                K * sqrt(toy_PCFG.probability_program(toy_PCFG.start, program)),
                 0,
             ]
         i = 0
@@ -364,21 +394,25 @@ class TestSum(unittest.TestCase):
         for r in random_ratios:
             self.assertAlmostEqual(ratios[0], r, 1)
 
-    def test_completesness_sqrt_sampling_with_sbsur(self):
+    def test_completeness_sqrt_sampling_with_sbsur(self):
         """
         Check if sqrt_sampling_with_sbsur algorithm does not miss any program.
         """
         try:
             import sbsur
-        except ImportError:
+        except:
+            print("did not import sbsur")
             return
-        n = 10_0000
-        deepcoder = dsl.DSL(semantics, primitive_types)
-        type_request = Arrow(List(INT), List(INT))
-        r = type_request.returns()
-        deepcoder_PCFG = deepcoder.DSL_to_Random_PCFG(type_request, alpha=0.6)
 
-        gen_sqrt_sampling = sqrt_sampling_with_sbsur(deepcoder_PCFG)  # generator for sqrt sampling
+        deepcoder = DSL(semantics, primitive_types)
+        type_request = Arrow(List(INT), List(INT))
+        deepcoder_CFG = deepcoder.DSL_to_CFG(type_request)
+        deepcoder_PCFG = deepcoder_CFG.CFG_to_Random_PCFG()
+
+        n = 10_0000
+
+        gen_sqrt_sampling = sqrt_sampling_with_sbsur(deepcoder_PCFG)
+        r = type_request.returns()
 
         seen_programs = set()
         for program in gen_sqrt_sampling:
@@ -388,32 +422,31 @@ class TestSum(unittest.TestCase):
             if len(seen_programs) > n:
                 break
 
-    def test_evaluation_from_compressed(self):
-        """
-        Check if evaluation_from_compressed evaluates correctly the programs
-        """
-        N = 20_000  # we test against the first N programs
+    # def test_evaluation_from_compressed(self):
+    #     """
+    #     Check if evaluation_from_compressed evaluates correctly the programs
+    #     """
+    #     N = 20_000  # we test against the first N programs
 
-        deepcoder = dsl.DSL(semantics, primitive_types)
-        type_request = Arrow(List(INT), List(INT))
-        deepcoder_PCFG = deepcoder.DSL_to_Random_PCFG(type_request, alpha=0.6)
+    #     deepcoder = DSL(semantics, primitive_types)
+    #     type_request = Arrow(List(INT), List(INT))
+    #     deepcoder_CFG = deepcoder.DSL_to_CFG(type_request)
+    #     deepcoder_PCFG = deepcoder_CFG.CFG_to_Random_PCFG()
 
-        gen_a_star = a_star(deepcoder_PCFG)
+    #     gen_a_star = a_star(deepcoder_PCFG)
 
-        environment = ([2, 3, 1], ([1, 4], None))
+    #     environment = ([2, 3, 1], None)
 
-        for i in range(N):
-            program_compressed = next(gen_a_star)
-            program = reconstruct_from_compressed(
-                program_compressed, type_request.returns()
-            )
-            program_as_list = []
-            eval_from_compressed = evaluation_from_compressed(
-                program_compressed, deepcoder, environment, type_request.returns()
-            )
-            eval_from_program = program.eval_naive(deepcoder, environment)
-            self.assertEqual(eval_from_compressed, eval_from_program)
-
+    #     r = type_request.returns()
+    #     for i in range(N):
+    #         program_compressed = next(gen_a_star)
+    #         program = reconstruct_from_compressed(program_compressed, r)
+    #         program_as_list = []
+    #         eval_from_compressed = evaluation_from_compressed(
+    #             program_compressed, deepcoder, environment, r
+    #         )
+    #         eval_from_program = program.eval_naive(deepcoder, environment)
+    #         self.assertEqual(eval_from_compressed, eval_from_program)
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
