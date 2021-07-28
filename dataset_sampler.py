@@ -34,7 +34,7 @@ class Dataset(torch.utils.data.IterableDataset):
         transform : a function to transform the raw [I,O], program
         min_int, max_int : min/max integer that we allow (in particular, if an output has a too big or too small integer, we remove this example)
     """
-    def __init__(self, size_dataset, dsl, pcfg, nb_max_IOs = 2, nb_variables = 2, transform = None, min_int = -10, max_int = 9):
+    def __init__(self, size_dataset, dsl, pcfg, nb_max_IOs = 2, nb_variables = 2, transform = None, min_int = 0, max_int = 10):
         super(Dataset).__init__()
         self.size_dataset = size_dataset
         self.dsl = dsl
@@ -48,7 +48,7 @@ class Dataset(torch.utils.data.IterableDataset):
     def __iter__(self):
         return (self.__single_data__() for i in range(self.size_dataset))
 
-    def __single_data__(self):
+    def __single_data__(self, verbose = False):
         flag = True
         output = None
         while flag == True or output == None:
@@ -71,6 +71,8 @@ class Dataset(torch.utils.data.IterableDataset):
         
         x = [[I,O] for I,O in zip(inputs, outputs)]
         y = program
+        if verbose:
+            print(program)
         if self.transform:
             x = self.transform.encode_all_examples(x)
             y = self.transform.encode_program(y)
@@ -90,4 +92,6 @@ class Dataset(torch.utils.data.IterableDataset):
 def custom_collate(batch):
     return [batch[i][0] for i in range(len(batch))], torch.stack([batch[i][1] for i in range(len(batch))])
 
+def custom_collate_2(batch):
+    return [batch[i][0] for i in range(len(batch))], [batch[i][1] for i in range(len(batch))]
 

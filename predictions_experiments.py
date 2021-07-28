@@ -48,15 +48,15 @@ class Net(nn.Module):
         output_dim: dimension of the output predictions (= number of transitions in the PCFG)        
     '''
 
-    def __init__(self, template_cfg, embedder, size_hidden):
+    def __init__(self, template_cfg, embedder, size_hidden, min_int = 0, max_int = 10):
         super(Net, self).__init__()
 
         self.template_cfg = template_cfg
         self.embedder = embedder
-        self.min_int = -10
-        self.max_int = 9
+        self.min_int = min_int
+        self.max_int = max_int
         self.size_lexicon = self.max_int - self.min_int + 1
-        self.dim_embedding = 3
+        self.dim_embedding = 2
 
         self.io_dim = embedder.io_dim
         self.output_dim = embedder.output_dim
@@ -102,15 +102,17 @@ class Net(nn.Module):
         '''
         Perform a forward pass and reconstruct the grammar
         '''
-        print("LIOS", list_IOs)
         res = []
         for x in list_IOs:
-
+            x = x.long()
+            x = x - self.min_int # translate to have everything between 0 and size_lexicon
+            x = self.embed(x)
+            x = torch.flatten(x,start_dim=1)
             x = self.hidden(x)
+        # print(x.shape)
         # Average along any column for any 2d matrix in the batch
             x = torch.mean(x, -2)
             x = self.final_layer(x)  # get the predictions
-
         # reconstruct the grammar
             grammars = []
             rules = {}
