@@ -1,6 +1,8 @@
+import torch
 from collections import deque
 import pickle
 from math import exp
+import time
 
 import logging
 import argparse
@@ -10,6 +12,7 @@ from program import *
 from cfg import *
 from pcfg import *
 from dsl import *
+from program_as_list import reconstruct_from_compressed
 
 from Algorithms.heap_search import heap_search
 from Algorithms.heap_search_naive import heap_search_naive
@@ -18,7 +21,9 @@ from Algorithms.threshold_search import threshold_search
 from Algorithms.dfs import dfs
 from Algorithms.bfs import bfs
 from Algorithms.sort_and_add import sort_and_add
-from Algorithms.sqrt_sampling import sqrt_sampling
+from Algorithms.sqrt_sampling import sqrt_sampling, sqrt_sampling_with_sbsur
+
+
 
 logging_levels = {0:logging.INFO, 1:logging.DEBUG}
 
@@ -38,7 +43,7 @@ total_number_programs = int(args.total_number_programs)
 range_task = range(int(args.range_task_begin), int(args.range_task_end))
 
 # Set of algorithms where we need to reconstruct the programs
-reconstruct = {dfs, bfs, threshold_search, a_star, sort_and_add}
+reconstruct = {dfs, bfs, threshold_search, a_star, sort_and_add, sqrt_sampling_with_sbsur}
 
 def run_algorithm(dsl, examples, pcfg, algorithm, name_algo, param):
     '''
@@ -112,7 +117,8 @@ def run_algorithm(dsl, examples, pcfg, algorithm, name_algo, param):
 list_algorithms = [
     (heap_search, 'heap search', {}), 
     # (heap_search_naive, 'heap search naive', {}), 
-    # (sqrt_sampling, 'SQRT', {}), 
+    # (sqrt_sampling, 'SQRT', {}),
+    # (sqrt_sampling_with_sbsur, 'SQRT+SBS UR', {}),
     # (a_star, 'A*', {}),
     # (threshold_search, 'threshold', {'initial_threshold' : 0.0001, 'scale_factor' : 10}), 
     # (bfs, 'bfs', {'beam_width' : 50000}),
