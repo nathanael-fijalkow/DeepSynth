@@ -1,4 +1,3 @@
-import torch
 from collections import deque
 import pickle
 from math import exp
