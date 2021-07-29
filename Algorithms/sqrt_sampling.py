@@ -11,7 +11,7 @@ def sqrt_sampling_with_sbsur(G: PCFG, batch_size: int = 100, start = None):
     """
     SQRT = sqrt_PCFG(G)
     start = start or SQRT.start
-    sampler = SQRT.get_sbsur_sampler(SQRT.start)
+    sampler = SQRT.get_sbsur_sampler(start)
     while True:
         batch = sampler(batch_size)
         for el in batch:

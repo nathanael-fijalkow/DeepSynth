@@ -245,36 +245,38 @@ class PCFG:
         Returns a function: batch_size -> list[program]
         """
         from sbsur import SequenceGenerator, sample
-        self.clean()
 
-        authorized_depth = self.max_program_depth - (1 if S is not None else 0)
+        # Build the list of derivations
+        try:
+            self.list_derivations
+        except:
+            self.list_derivations = {}
+            for K in self.rules:
+                self.list_derivations[K] = sorted(
+                    self.rules[K], key=lambda P: self.rules[K][P][1]
+                )
+
+        max_categories = max(len(self.list_derivations[J]) for J in self.rules)
         S = S or self.start
-        max_categories = max(len(self.list_derivations[S]) for S in self.rules)
 
         # int list -> log probs | None
         def get_logprobs(sequence):
             context_stack = [S]
-            depth_stack = [0]
-            max_depth = 0
             for i in sequence:
                 current = context_stack.pop()
-                depth = depth_stack.pop()
                 # Skip when there's only 1 possibility since no sampling is necessary
                 # Since the grammar is correctly defined we should never pop an empty stack
                 while len(self.list_derivations[current]) == 1:
                     current = context_stack.pop()
-                    depth = depth_stack.pop()
-                max_depth = max(depth, max_depth)
+
                 # Get the derivation
                 P = self.list_derivations[current][i]
-                args_P, w = self.rules[current][P]
-                if len(args_P) > 0:
+                args_P, _ = self.rules[current][P]
+                if args_P:
                     for arg in args_P:
                         context_stack.append(arg)
-                        depth_stack.append(depth + 1)
-                # We can discard terminals since no further sampling is required
-            # The depth check should be useless but we never know
-            if len(context_stack) == 0 or max_depth > authorized_depth:
+            # This is a valid program => No further sampling is required
+            if len(context_stack) == 0:
                 return None
             # Pop the current context
             current = context_stack.pop()
