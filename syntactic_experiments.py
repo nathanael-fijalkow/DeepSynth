@@ -1,27 +1,22 @@
-# Import tools
-from type_system import *
-from program import *
-from cfg import *
-from pcfg import *
-from dsl import *
-
-# Import DSL
-from DSL.deepcoder import *
-
-# Import algorithms
-from Algorithms.heap_search import heap_search
-from Algorithms.a_star import a_star
-from Algorithms.threshold_search import threshold_search
-from Algorithms.dfs import dfs
-from Algorithms.bfs import bfs
-from Algorithms.sqrt_sampling import sqrt_sampling
-
 import pickle
 import time
 import random
 import matplotlib.pyplot as plt
 from math import log10
 
+from type_system import Type, PolymorphicType, PrimitiveType, Arrow, List, UnknownType, INT, BOOL
+from program import Program, Function, Variable, BasicPrimitive, New
+from cfg import CFG
+from pcfg import PCFG
+from dsl import DSL
+
+from DSL.deepcoder import semantics,primitive_types
+from Algorithms.heap_search import heap_search
+from Algorithms.a_star import a_star
+from Algorithms.threshold_search import threshold_search
+from Algorithms.dfs import dfs
+from Algorithms.bfs import bfs
+from Algorithms.sqrt_sampling import sqrt_sampling
 
 seed = 100
 random.seed(seed)

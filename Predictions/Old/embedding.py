@@ -61,7 +61,6 @@ class RecurrentFeatureExtractor(nn.Module):
     def packExamples(self, examples):
         """
         IMPORTANT! xs must be sorted in decreasing order of size 
-        because pytorch is stupid
         """
         es = []
         sizes = []
@@ -124,7 +123,8 @@ class RecurrentFeatureExtractor(nn.Module):
         return e
 
     def forward(self, tasks):
-        """tasks: list of tasks
+        """
+        tasks: list of tasks
         each task is a list of I/O
         each I/O is a tuple of input, output
         each output is a list whose members are elements of self.lexicon

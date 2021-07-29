@@ -4,30 +4,31 @@ from program import Program, Function, Variable, BasicPrimitive, New
 
 class Encoding():
     '''
-    Objet that can embed inputs, ouputs and programs
+    Objet that can embed inputs, outputs and programs
     for simplicity we only embed arguments of type list[int] here (there is another file with a more generic implementation with the possibility to work with any type)
 
-    template_cfg: a cfg template
-    size_max: size max of an input or an output (= length of the associated list)
-    nb_inputs_max: maximum number of inputs
+    cfg: a cfg template
 
-    self.io_dim: the dimension of the concatenation of an input/output pair
+    size_max: size max of an input or an output (= length of the associated list)
+
+    nb_inputs_max: maximum number of inputs
 
     example; if inputs/output = [[input_1, input_2, etc..], output] = [[[11,20],[3]], [12,2]] and size_max = 2, nb_inputs_max = 3 the encoding is [11,1,20,1,3,1,0,0,0,0,0,0, 12,1,2,1]
     '''
 
-    def __init__(self, template_cfg, size_max, nb_inputs_max) -> None:
-        self.template_cfg = template_cfg
+    def __init__(self, cfg, size_max, nb_inputs_max) -> None:
+        self.cfg = cfg
         self.size_max = size_max
         self.nb_inputs_max = nb_inputs_max
+        # self.io_dim: the dimension of the concatenation of an input/output pair
         self.io_dim = 2*size_max*(1+nb_inputs_max)
         self.output_dim = 0
         counter = 0
         # self.hash_table[(S,P)] ::= position of the transition (S,P) in the final layer of the neural network
         self.hash_table = {}
-        for S in template_cfg.rules:
-            self.output_dim += len(template_cfg.rules[S])
-            for P in template_cfg.rules[S]:
+        for S in cfg.rules:
+            self.output_dim += len(cfg.rules[S])
+            for P in cfg.rules[S]:
                 self.hash_table[(S, P)] = counter
                 counter += 1
 
@@ -36,7 +37,7 @@ class Encoding():
         take a program and output a tensor of dimension #(transitions) (it sets a 1 for the transitions used to derive the program and 0 otherwise)
         '''
         if S == None:
-            S = self.template_cfg.start
+            S = self.cfg.start
         if tensor == None:
             tensor = torch.zeros(self.output_dim)
         if isinstance(program, Function):
@@ -45,12 +46,12 @@ class Encoding():
             tensor[self.hash_table[(S, F)]] += 1
             for i, arg in enumerate(args_P):
                 self.encode_program(
-                    arg, self.template_cfg.rules[S][F][i], tensor)
+                    arg, self.cfg.rules[S][F][i], tensor)
 
         if isinstance(program, (BasicPrimitive, Variable)):
             tensor[self.hash_table[(S, program)]] += 1
 
-        if S == self.template_cfg.start:
+        if S == self.cfg.start:
             return tensor
 
     def encode_single_arg(self, arg):

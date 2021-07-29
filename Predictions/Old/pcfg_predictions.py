@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 
-from dsl import *
+from dsl import DSL
 from pcfg import PCFG
 from pcfg_logprob import LogProbPCFG
 
@@ -68,11 +68,11 @@ class PCFG_Predictor(nn.Module):
             optimizer.step()
 
             if step % 100 == 0:
-                logging.debug("optimization step {}\tlog likelihood {}".format(step, likelihood))
+                logging.debug("optimization step {}\tlog likelihood {}".str(step, likelihood))
 
     def test(self, programs, tasks):
         grammars = self(tasks)
         for grammar, program in zip(grammars, programs):
             grammar = grammar.normalise()
-            logging.debug("predicted grammar {}".format(grammar))
-            logging.info("intended program {}\nprobability {}".format(program, grammar.probability_program(self.template_cfg.start, program)))
+            logging.debug("predicted grammar {}".str(grammar))
+            logging.info("intended program {}\nprobability {}".str(program, grammar.probability_program(self.template_cfg.start, program)))

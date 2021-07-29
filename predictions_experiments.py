@@ -1,269 +1,172 @@
 import logging
+import argparse
+import matplotlib.pyplot as plt
+import torch 
 
-from torch._C import dtype
-
-from dsl import DSL
-from program import Program, Function, Variable, BasicPrimitive, New
 from type_system import Type, PolymorphicType, PrimitiveType, Arrow, List, UnknownType, INT, BOOL
-import torch
-from torch import nn
-from pcfg import PCFG
+from Predictions.dataset_sampler import Dataset
+from Predictions.IOencodings import FixedSizeEncoding, VariableSizeEncoding
+from Predictions.embeddings import SimpleEmbedding#, RecurrentEmbedding
+from Predictions.models import GlobalRulesPredictor
 
-device = 'cpu'
-# A block is a concatenation of a linear layer + a sigmoid
-# This is a "map_style" Dataset, it is also possible to define a Dataset with an iterator instead of a __getitem__ function (useful for streaming/random inputs/output pair) 
-class Data(torch.utils.data.Dataset):
-    def __init__(self, tasks, programs, transform=None):
-        self.tasks = tasks
-        self.programs = programs
-        self.transform = transform
+import dsl
+from DSL.deepcoder import semantics, primitive_types
 
-    def __len__(self):
-        return len(self.tasks)
+logging_levels = {0:logging.INFO, 1:logging.DEBUG}
 
-    def __getitem__(self, index):
-        x = self.tasks[index]
-        y = self.programs[index]
-        if self.transform:
-            x = self.transform.embed_all_examples(x)
-            y = self.transform.embed_program(y)
-        return x, y
+parser = argparse.ArgumentParser()
+parser.add_argument('--verbose', '-v', dest='verbose', default=0)
+args,unknown = parser.parse_known_args()
+
+verbosity = int(args.verbose)
+logging.basicConfig(format='%(message)s', level=logging_levels[verbosity])
 
 
+############################
+######### PCFG #############
+############################
 
-def block(input_dim, output_dim):
-    return nn.Sequential(
-        nn.Linear(input_dim, output_dim),
-        nn.Sigmoid()
+deepcoder = dsl.DSL(semantics, primitive_types)
+type_request = Arrow(List(INT), List(INT))
+deepcoder_cfg = deepcoder.DSL_to_CFG(type_request, max_program_depth = 4)
+deepcoder_pcfg = deepcoder_cfg.CFG_to_Random_PCFG(alpha=0.7)
+
+############################
+###### IO ENCODING #########
+############################
+
+# IO = [[I1, ...,Ik], O]
+# I1, ..., Ik, O are lists
+# IOs = [IO1, IO2, ..., IOn]
+# task = (IOs, program)
+# tasks = [task1, task2, ..., taskp]
+
+size_max = 5 # maximum number of elements in a list (input or output)
+nb_inputs_max = 5 # maximum number of inputs in an IO
+lexicon = list(range(30)) # all elements of a list must be from lexicon
+
+#### Specification: #####
+# IOEncoder.output_dimension: size of the encoding of one IO
+# IOEncoder.lexicon_size: size of the lexicon
+# IOEncoder.encode_IO: outputs a tensor of dimension IOEncoder.output_dimension
+# IOEncoder.encode_IOs: inputs a list of IO of size n
+# and outputs a tensor of dimension n * IOEncoder.output_dimension
+
+IOEncoder = FixedSizeEncoding(
+    nb_inputs_max = nb_inputs_max,
+    lexicon = lexicon,
+    size_max = size_max,
     )
 
+# # only useful for VariableSizeEncoding
+# encoding_output_dimension = 15 # fixing the dimension, 
 
-class Net(nn.Module):
-    '''
-    Predictor Class
-    Args:
-        template_cfg: a cfg template
-        embedder: a objet that can embed inputs, ouputs and programs
-        size_hidden: size of a hidden layer
-        output_dim: dimension of the output predictions (= number of transitions in the PCFG)        
-    '''
+# IOEncoder2 = VariableSizeEncoding(
+#     nb_inputs_max = nb_inputs_max,
+#     lexicon = lexicon,
+#     output_dimension = encoding_output_dimension,
+#     )
 
-    def __init__(self, template_cfg, embedder, size_hidden, min_int = 0, max_int = 10):
-        super(Net, self).__init__()
+############################
+######### EMBEDDING ########
+############################
 
-        self.template_cfg = template_cfg
-        self.embedder = embedder
-        self.min_int = min_int
-        self.max_int = max_int
-        self.size_lexicon = self.max_int - self.min_int + 1
-        self.dim_embedding = 2
+embedding_output_dimension = 5
 
-        self.io_dim = embedder.io_dim
-        self.output_dim = embedder.output_dim
+IOEmbedder = SimpleEmbedding(
+    IOEncoder = IOEncoder,
+    output_dimension = embedding_output_dimension,
+    )
 
-        self.embed = nn.Embedding(self.size_lexicon, self.dim_embedding)
-        # hidden layers
-        self.hidden = nn.Sequential(
-            block(self.io_dim*self.dim_embedding, size_hidden),
-            block(size_hidden, size_hidden),
-            block(size_hidden, size_hidden),
-        )
+#### Specification: #####
+# IOEmbedder.output_dimension: size of the output of the embedder
+# IOEmbedder.forward_IOs: inputs a list of IOs
+# and outputs the embedding of the encoding of the IOs
+# which is a tensor of dimension
+# (IOEmbedder.input_dimension, IOEmbedder.output_dimension)
+# IOEmbedder.forward: same but with a batch of IOs
 
-        # final activation
-        self.final_layer = nn.Sequential(
-            nn.Linear(size_hidden, self.output_dim),
-            nn.Sigmoid()
-        )
+############################
+######### MODEL ############
+############################
 
-    # data = list d'encoding de IOs
-    # renvoyer un tenseur
-    # colate qui crée une liste de IOs/ tenseur de programmes
-    def forward(self, list_IOs):
-        '''
-        Function for completing a forward pass of the Net, and output the array of transition probabilities
-        Parameters:
-            data: a tensor with dimensions (batch_size, io_nb, io_dim) (in pytorch, this is named (N,*,H_in))
-        '''
-        res = []
-        for x in list_IOs:
-            x = x.long()
-            x = x - self.min_int # translate to have everything between 0 and size_lexicon
-            x = self.embed(x)
-            x = torch.flatten(x,start_dim=1)
-            x = self.hidden(x)
-        # print(x.shape)
-        # Average along any column for any 2d matrix in the batch
-            x = torch.mean(x, -2)
-            x = self.final_layer(x)  # get the predictions
-            res.append(x)
-        return torch.stack(res)
+model = GlobalRulesPredictor(
+    cfg = deepcoder_cfg, 
+    IOEncoder = IOEncoder,
+    IOEmbedder = IOEmbedder,
+    size_hidden = 64, 
+    )
 
-    def forward_grammar(self, list_IOs):
-        '''
-        Perform a forward pass and reconstruct the grammar
-        '''
-        res = []
-        for x in list_IOs:
-            x = x.long()
-            x = x - self.min_int # translate to have everything between 0 and size_lexicon
-            x = self.embed(x)
-            x = torch.flatten(x,start_dim=1)
-            x = self.hidden(x)
-        # print(x.shape)
-        # Average along any column for any 2d matrix in the batch
-            x = torch.mean(x, -2)
-            x = self.final_layer(x)  # get the predictions
-        # reconstruct the grammar
-            grammars = []
-            rules = {}
-            for S in self.template_cfg.rules:
-                rules[S] = {}
-                for P in self.template_cfg.rules[S]:
-                # x[self.embedder.hash_table[(S,P)] is the predicted proba of the rule S -> P
-                    rules[S][P] = self.template_cfg.rules[S][P], float(
-                        x[self.embedder.hash_table[(S, P)]])
-            grammars.append(rules)
-            res.append(PCFG(template_cfg.start, rules, max_program_depth=template_cfg.max_program_depth))
+loss = model.loss
+optimizer = model.optimizer
+nb_epochs = model.nb_epochs
+ProgramEncoder = model.ProgramEncoder
 
-        # ?TODO? maybe normalize the grammar before outputing it??
-        # return grammars
-        return res
+############################
+######## DATASET ###########
+############################
 
-    def train(self, data, epochs=200):
-        optimizer = torch.optim.Adam(self.parameters())
+dataset_size = 10_000
 
-        for step in range(epochs):
-            for data in trainset:  # batch of data
-                X, y = data
-                optimizer.zero_grad()
-                output = self(X)
-                loss_value = loss(output, y)
-                loss_value.backward()
-                optimizer.step()
+dataset = Dataset(
+    size = dataset_size,
+    dsl = deepcoder, 
+    pcfg = deepcoder_pcfg, 
+    nb_inputs_max = nb_inputs_max,
+    arguments = type_request.arguments(),
+    IOEncoder = IOEncoder,
+    IOEmbedder = IOEmbedder,
+    ProgramEncoder = ProgramEncoder,
+    size_max = size_max,
+    lexicon = lexicon,
+    )
 
-            if step % 100 == 0:
-                logging.debug("optimization step {}\tbinary cross entropy {}".format(
-                    step, float(loss_value)))
+batch_size = 500
 
-    def test(self, programs, tasks):
-        for task, program in zip(tasks, programs):
-            grammar = self.forward_grammar(
-                self.embedder.embed_all_examples(task))
-            # grammar = grammar.normalise()
-            # program = self.embedder.embed_program(program)
-            # print("predicted grammar {}".format(grammar))
-            print("intended program {}\nprobability {}".format(
-                program, grammar.probability_program(self.template_cfg.start, program)))
+dataloader = torch.utils.data.DataLoader(
+    dataset = dataset,
+    batch_size = batch_size,
+    collate_fn = model.custom_collate,
+    )
 
+############################
+######## TRAINING ##########
+############################
 
+# print("IOEncoder.output_dimension", IOEncoder.output_dimension)
+# print("IOEmbedder.output_dimension", IOEmbedder.output_dimension)
 
-# Example of use
+for epoch in range(nb_epochs):
+    for (batch_IOs, batch_program) in dataloader:
+        optimizer.zero_grad()
+        # print("batch_program", batch_program.size())
+        batch_predictions = model(batch_IOs)
+        # print("batch_predictions", batch_predictions.size())
 
-primitive_types = {
-    "if": Arrow(BOOL, Arrow(INT, INT)),
-    "+": Arrow(INT, Arrow(INT, INT)),
-    "0": INT,
-    "1": INT,
-    "and": Arrow(BOOL, Arrow(BOOL, BOOL)),
-    "lt": Arrow(INT, Arrow(INT, BOOL)),
-}
+        loss_value = loss(batch_predictions, batch_program)
+        loss_value.backward()
+        optimizer.step()
 
-semantics = {
-    "if": lambda b: lambda x: lambda y: x if b else y,
-    "+": lambda x: lambda y: x + y,
-    "0": 0,
-    "1": 1,
-    "and": lambda b1: lambda b2: b1 and b2,
-    "lt": lambda x: lambda y: x <= y,
-}
+    print("epoch: {}\t loss: {}".format(epoch, float(loss_value)))
 
-programs = [
-    Function(BasicPrimitive("+", Arrow(INT, Arrow(INT, INT))),
-             [BasicPrimitive("0", INT), BasicPrimitive("1", INT)], INT),
-    BasicPrimitive("0", INT),
-    BasicPrimitive("1", INT)
-]
+# print(model.embed.weight)
+# print([x for x in model.embed.weight[:,0]])
+# x = [x for x in model.embed.weight[:,0]]
+# y = [x for x in model.embed.weight[:,1]]
+# label = [str(a+min_int) for a in range(len(x))]
+# plt.plot(x,y, 'o')
+# for i, s in enumerate(label):
+#     xx = x[i]
+#     yy = y[i]
+#     plt.annotate(s, (xx, yy), textcoords="offset points", xytext=(0,10), ha='center')
+# plt.show()
 
-dsl = DSL(semantics, primitive_types)
-type_request = Arrow(INT, INT)
-template_cfg = dsl.DSL_to_CFG(type_request)
-
-
-#E = Encoding(template_cfg, 5, 5)
-# I must be a list of list of floats (all inputs)
-# 0 is a list of floats (the output)
-# IO is a "pair" inputs/output as IO = [I,O], this is what we can used to feed the embedded as E.embed_IO(IO)
-# TOY EXAMPLE
-# I = [[10]]
-# O = [1]
-# I2 = [[77, 100], [33, 66]]
-# O2 = [0]
-# IO = [I, O]  # a single I/O example
-# IO2 = [I2, O2]
-# IOs = [IO, IO2]  # several I/O examples.
-# print(E.embed_IO(IO))
-# x = E.embed_all_examples(IOs)
-# print(x)
-# NN = Net(template_cfg, E, 10)  # a model with hidden layers of size 10
-# print(NN(x))  # a forward pass: return the array of transition probabilities
-# # a forward pass + the reconstruction of the grammar
-# # print(NN.forward_grammar(x))
-
-
-# --------- LEARNING, a toy example
-
-# torch.device(device)
-
-# # path to use a saved model
-# # PATH_IN = "saved_models/test" #path for loading a model saved externally
-
-# # path to save the model after the training
-# # PATH_OUT = "saved_models/test_" + str(datetime.datetime.now())
-
-# EPOCHS = 1_000
-
-# # Loss
-# loss = torch.nn.BCELoss(reduction='mean')
-
-# # Models
-# model = Net(template_cfg, E, 10)
-# trainset = [(model.embedder.embed_all_examples([IO, IO]), model.embedder.embed_program(programs[0])),
-#             (model.embedder.embed_all_examples([IO2]), model.embedder.embed_program(programs[1]))]
-# # to use a saved model
-# # M = torch.load(PATH_IN)
-
-# # Optimizers
-# optimizer = torch.optim.Adam(model.parameters(), lr=0.1)
-# # optimizer = torch.optim.SGD(M.parameters(), lr=0.01, momentum=0.9)
-
-# for epoch in range(EPOCHS):
-#     for data in trainset:  # batch of data
-#         X, y = data
-#         model.zero_grad()
-#         output = model(X)
-#         loss_value = loss(output, y)
-#         if epoch % 100 == 0:
-#             print("optimization step", epoch,
-#                   "\tbinary cross entropy ", float(loss_value))
-#         loss_value.backward()
-#         optimizer.step()
-
-# print('\ntheoretical transitions:\n', E.embed_program(programs[0]))
-# print('\n\npredicted transitions:\n', model(E.embed_all_examples([IO])))
-# print('\n\ndifferences:\n', E.embed_program(
-#     programs[0])-model(E.embed_all_examples([IO])))
-# print('\n\nAssociated grammar:\n',
-#       model.forward_grammar(E.embed_all_examples([IO])))
-# G = model.forward_grammar(E.embed_all_examples([IO]))
-# tasks = [[IO], [IO2]]
-# model.test(programs, tasks)
-# torch.save(model, PATH_OUT)
-
-# training = Data(tasks, programs, E)
-# X, y = training.__getitem__(0)
-# from torch.utils.data import DataLoader
-
-# train_dataloader = DataLoader(training, batch_size=2, shuffle=True)
-
-# for train_features, train_labels in train_dataloader: #it comes in batch
-#     print(train_features, train_labels)
+# def test(self, programs, tasks):
+#     for task, program in zip(tasks, programs):
+#         grammar = self.forward_grammar(
+#             self.IOEncoder.embed_all_examples(task))
+#         # grammar = grammar.normalise()
+#         # program = self.IOEncoder.embed_program(program)
+#         # print("predicted grammar {}".format(grammar))
+#         print("intended program {}\nprobability {}".format(
+#             program, grammar.probability_program(self.cfg.start, program)))
