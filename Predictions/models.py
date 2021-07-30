@@ -38,7 +38,6 @@ class GlobalRulesPredictor(nn.Module):
         self.IOEmbedder = IOEmbedder
 
         self.loss = torch.nn.BCELoss(reduction='mean')
-        self.optimizer = torch.optim.Adam(self.parameters(), lr=0.1)
 
         self.init_RuleToIndex()
 
@@ -51,6 +50,7 @@ class GlobalRulesPredictor(nn.Module):
         )
         # final layer
         self.final_layer = block(size_hidden, self.output_dimension, nn.Sigmoid())
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=0.1)
 
     def init_RuleToIndex(self):
         self.output_dimension = 0
@@ -171,7 +171,6 @@ class LocalRulesPredictor(nn.Module):
         self.loss = lambda batch_grammar, batch_program:\
             - sum(grammar.log_probability_program(self.cfg.start, program)
                   for grammar, program in zip(batch_grammar, batch_program))
-        self.optimizer = torch.optim.Adam(self.parameters(), lr=0.1)
 
         H = IOEncoder.output_dimension * self.IOEmbedder.output_dimension
 
@@ -182,6 +181,7 @@ class LocalRulesPredictor(nn.Module):
                                    nn.LogSoftmax(-1))
             projection_layer[str(S)] = module
         self.projection_layer = nn.ModuleDict(projection_layer)
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=0.1)
             
     def ProgramEncoder(self, program): 
         return program
