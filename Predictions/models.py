@@ -160,7 +160,6 @@ class LocalRulesPredictor(nn.Module):
         cfg, 
         IOEncoder,
         IOEmbedder,
-        size_hidden,
         ):
         super(LocalRulesPredictor, self).__init__()
 
@@ -183,8 +182,8 @@ class LocalRulesPredictor(nn.Module):
             projection_layer[str(S)] = module
         self.projection_layer = nn.ModuleDict(projection_layer)
             
-    def ProgramEncoder(self): 
-        return lambda x: x
+    def ProgramEncoder(self, program): 
+        return program
 
     def forward(self, batch_IOs):
         '''
@@ -192,19 +191,16 @@ class LocalRulesPredictor(nn.Module):
         (batch_size, IOEncoder.output_dimension, IOEmbedder.output_dimension) 
         '''
         grammars = []
-        for i, x in enumerate(batch_IOs):
-            print("size of x", x.size())
-            x = self.IOEmbedder.forward_IOs(x)
-            print("size of x", x.size())
+        for x in batch_IOs:
+            x = self.IOEmbedder.forward([x])
             probabilities = {S: self.projection_layer[format(S)](x)
                              for S in self.cfg.rules}
-
             rules = {}
             for S in self.cfg.rules:
                 rules[S] = {}
                 for j, P in enumerate(self.cfg.rules[S]):
                     rules[S][P] = self.cfg.rules[S][P], \
-                    probabilities[S][i, j]
+                    probabilities[S][0 ,j]
             grammar = LogProbPCFG(self.cfg.start, 
                 rules, 
                 max_program_depth=self.cfg.max_program_depth)
