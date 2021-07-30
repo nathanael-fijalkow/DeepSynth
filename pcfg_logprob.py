@@ -87,7 +87,7 @@ class LogProbPCFG:
     def __hash__(self):
         return self.hash
 
-    def __str__(self):
+    def __repr__(self):
         s = "Print a LogProbPCFG\n"
         s += "start: {}\n".str(self.start)
         for S in reversed(self.rules):

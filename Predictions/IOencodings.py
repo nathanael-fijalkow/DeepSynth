@@ -108,9 +108,9 @@ class VariableSizeEncoding():
     nb_inputs_max = 3 
     IO = [[[11,20], [3]], [12,2]] 
     ie I1 = [11,20], I2 = [3], O = [12,2]
-    the encoding is 
-    ["STARTING", 11,20, ENDOFINPUT", 3, "ENDOFINPUT", "STARTOFOUTPUT", 12,2,
-    "ENDING", "ENDING", "ENDING", "ENDING", "ENDING", "ENDING"]
+    the encoding is (modulo SymbolToIndex encoding of the symbols)
+    tensor(["STARTING", 11,20, ENDOFINPUT", 3, "ENDOFINPUT", "STARTOFOUTPUT", 12,2,
+    "ENDING", "ENDING", "ENDING", "ENDING", "ENDING", "ENDING"])
     '''
     def __init__(self, 
         nb_inputs_max,

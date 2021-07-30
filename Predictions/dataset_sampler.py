@@ -26,8 +26,8 @@ class Dataset(torch.utils.data.IterableDataset):
         pcfg, 
         nb_inputs_max, 
         arguments,
-        IOEncoder,
-        IOEmbedder,
+        # IOEncoder,
+        # IOEmbedder,
         ProgramEncoder,
         size_max,
         lexicon,
@@ -40,8 +40,8 @@ class Dataset(torch.utils.data.IterableDataset):
         self.program_sampler = pcfg.sampling()
         self.nb_inputs_max = nb_inputs_max
         self.arguments = arguments
-        self.IOEncoder = IOEncoder
-        self.IOEmbedder = IOEmbedder
+        # self.IOEncoder = IOEncoder
+        # self.IOEmbedder = IOEmbedder
         self.ProgramEncoder = ProgramEncoder
         self.lexicon = lexicon
 
@@ -70,7 +70,8 @@ class Dataset(torch.utils.data.IterableDataset):
         
         IOs = [[I,O] for I,O in zip(inputs, outputs)]
         logging.debug('Found a program:\n{}\nand inputs:\n{}'.format(program,IOs))
-        return self.IOEncoder.encode_IOs(IOs), self.ProgramEncoder(program)
+        return IOs, self.ProgramEncoder(program)
+        # return self.IOEncoder.encode_IOs(IOs), self.ProgramEncoder(program)
     
     def __output_validation__(self, output):
         if len(output) == 0: 

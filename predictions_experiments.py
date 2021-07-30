@@ -6,8 +6,8 @@ import torch
 from type_system import Type, PolymorphicType, PrimitiveType, Arrow, List, UnknownType, INT, BOOL
 from Predictions.dataset_sampler import Dataset
 from Predictions.IOencodings import FixedSizeEncoding, VariableSizeEncoding
-from Predictions.embeddings import SimpleEmbedding#, RecurrentEmbedding
-from Predictions.models import GlobalRulesPredictor
+from Predictions.embeddings import SimpleEmbedding, RNNEmbedding
+from Predictions.models import GlobalRulesPredictor, LocalRulesPredictor
 
 import dsl
 from DSL.deepcoder import semantics, primitive_types
@@ -26,12 +26,20 @@ logging.basicConfig(format='%(message)s', level=logging_levels[verbosity])
 ############################
 
 max_program_depth = 4
+
 size_max = 5 # maximum number of elements in a list (input or output)
 nb_inputs_max = 5 # maximum number of inputs in an IO
 lexicon = list(range(30)) # all elements of a list must be from lexicon
+# only useful for VariableSizeEncoding
+encoding_output_dimension = 15 # fixing the dimension
+
 embedding_output_dimension = 5
-nb_epochs = 20
+# only useful for RNNEmbedding
+number_layers_RNN = 1
+
 size_hidden = 64
+nb_epochs = 2
+
 dataset_size = 10_000
 batch_size = 500
 
@@ -67,10 +75,9 @@ IOEncoder = FixedSizeEncoding(
     size_max = size_max,
     )
 
-# # only useful for VariableSizeEncoding
-# encoding_output_dimension = 15 # fixing the dimension, 
+print("IOEncoder.output_dimension", IOEncoder.output_dimension)
 
-# IOEncoder2 = VariableSizeEncoding(
+# IOEncoder = VariableSizeEncoding(
 #     nb_inputs_max = nb_inputs_max,
 #     lexicon = lexicon,
 #     output_dimension = encoding_output_dimension,
@@ -80,9 +87,17 @@ IOEncoder = FixedSizeEncoding(
 ######### EMBEDDING ########
 ############################
 
-IOEmbedder = SimpleEmbedding(
+# IOEmbedder = SimpleEmbedding(
+#     IOEncoder = IOEncoder,
+#     output_dimension = embedding_output_dimension,
+#     size_hidden = size_hidden, 
+#     )
+
+IOEmbedder = RNNEmbedding(
     IOEncoder = IOEncoder,
     output_dimension = embedding_output_dimension,
+    size_hidden = size_hidden, 
+    number_layers_RNN = number_layers_RNN,
     )
 
 #### Specification: #####
@@ -104,6 +119,13 @@ model = GlobalRulesPredictor(
     size_hidden = size_hidden, 
     )
 
+# model = LocalRulesPredictor(
+#     cfg = deepcoder_cfg, 
+#     IOEncoder = IOEncoder,
+#     IOEmbedder = IOEmbedder,
+#     size_hidden = size_hidden, 
+#     )
+
 loss = model.loss
 optimizer = model.optimizer
 ProgramEncoder = model.ProgramEncoder
@@ -118,8 +140,8 @@ dataset = Dataset(
     pcfg = deepcoder_pcfg, 
     nb_inputs_max = nb_inputs_max,
     arguments = type_request.arguments(),
-    IOEncoder = IOEncoder,
-    IOEmbedder = IOEmbedder,
+    # IOEncoder = IOEncoder,
+    # IOEmbedder = IOEmbedder,
     ProgramEncoder = ProgramEncoder,
     size_max = size_max,
     lexicon = lexicon,
@@ -135,40 +157,41 @@ dataloader = torch.utils.data.DataLoader(
 ######## TRAINING ##########
 ############################
 
-# print("IOEncoder.output_dimension", IOEncoder.output_dimension)
-# print("IOEmbedder.output_dimension", IOEmbedder.output_dimension)
+def train():
+    for epoch in range(nb_epochs):
+        for (batch_IOs, batch_program) in dataloader:
+            optimizer.zero_grad()
+            # print("batch_program", batch_program.size())
+            batch_predictions = model(batch_IOs)
+            # print("batch_predictions", batch_predictions.size())
+            loss_value = loss(batch_predictions, batch_program)
+            loss_value.backward()
+            optimizer.step()
 
-for epoch in range(nb_epochs):
-    for (batch_IOs, batch_program) in dataloader:
-        optimizer.zero_grad()
-        # print("batch_program", batch_program.size())
-        batch_predictions = model(batch_IOs)
-        # print("batch_predictions", batch_predictions.size())
+        print("epoch: {}\t loss: {}".format(epoch, float(loss_value)))
 
-        loss_value = loss(batch_predictions, batch_program)
-        loss_value.backward()
-        optimizer.step()
+def print_embedding():
+    print(IOEmbedder.embedding.weight)
+    print([x for x in IOEmbedder.embedding.weight[:,0]])
+    x = [x for x in IOEmbedder.embedding.weight[:,0]]
+    y = [x for x in IOEmbedder.embedding.weight[:,1]]
+    label = [str(a) for a in lexicon]
+    plt.plot(x,y, 'o')
+    for i, s in enumerate(label):
+        xx = x[i]
+        yy = y[i]
+        plt.annotate(s, (xx, yy), textcoords="offset points", xytext=(0,10), ha='center')
+    plt.show()
 
-    print("epoch: {}\t loss: {}".format(epoch, float(loss_value)))
+def test():
+    (batch_IOs, batch_program) = next(dataloader)
+    batch_predictions = model(batch_IOs)
+    batch_grammars = model.reconstruct_grammars(batch_predictions)
+    for program, grammar in zip(batch_program, batch_grammars):
+        # print("predicted grammar {}".format(grammar))
+        print("intended program {}\nprobability {}".format(
+            program, grammar.probability_program(model.cfg.start, program)))
 
-# print(model.embed.weight)
-# print([x for x in model.embed.weight[:,0]])
-# x = [x for x in model.embed.weight[:,0]]
-# y = [x for x in model.embed.weight[:,1]]
-# label = [str(a+min_int) for a in range(len(x))]
-# plt.plot(x,y, 'o')
-# for i, s in enumerate(label):
-#     xx = x[i]
-#     yy = y[i]
-#     plt.annotate(s, (xx, yy), textcoords="offset points", xytext=(0,10), ha='center')
-# plt.show()
-
-# def test(self, programs, tasks):
-#     for task, program in zip(tasks, programs):
-#         grammar = self.forward_grammar(
-#             self.IOEncoder.embed_all_examples(task))
-#         # grammar = grammar.normalise()
-#         # program = self.IOEncoder.embed_program(program)
-#         # print("predicted grammar {}".format(grammar))
-#         print("intended program {}\nprobability {}".format(
-#             program, grammar.probability_program(self.cfg.start, program)))
+train()
+test()
+print_embedding()
