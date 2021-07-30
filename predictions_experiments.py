@@ -21,6 +21,19 @@ args,unknown = parser.parse_known_args()
 verbosity = int(args.verbose)
 logging.basicConfig(format='%(message)s', level=logging_levels[verbosity])
 
+############################
+##### Hyperparameters ######
+############################
+
+max_program_depth = 4
+size_max = 5 # maximum number of elements in a list (input or output)
+nb_inputs_max = 5 # maximum number of inputs in an IO
+lexicon = list(range(30)) # all elements of a list must be from lexicon
+embedding_output_dimension = 5
+nb_epochs = 20
+size_hidden = 64
+dataset_size = 10_000
+batch_size = 500
 
 ############################
 ######### PCFG #############
@@ -28,8 +41,8 @@ logging.basicConfig(format='%(message)s', level=logging_levels[verbosity])
 
 deepcoder = dsl.DSL(semantics, primitive_types)
 type_request = Arrow(List(INT), List(INT))
-deepcoder_cfg = deepcoder.DSL_to_CFG(type_request, max_program_depth = 4)
-deepcoder_pcfg = deepcoder_cfg.CFG_to_Random_PCFG(alpha=0.7)
+deepcoder_cfg = deepcoder.DSL_to_CFG(type_request, max_program_depth = max_program_depth)
+deepcoder_pcfg = deepcoder_cfg.CFG_to_Uniform_PCFG()
 
 ############################
 ###### IO ENCODING #########
@@ -40,10 +53,6 @@ deepcoder_pcfg = deepcoder_cfg.CFG_to_Random_PCFG(alpha=0.7)
 # IOs = [IO1, IO2, ..., IOn]
 # task = (IOs, program)
 # tasks = [task1, task2, ..., taskp]
-
-size_max = 5 # maximum number of elements in a list (input or output)
-nb_inputs_max = 5 # maximum number of inputs in an IO
-lexicon = list(range(30)) # all elements of a list must be from lexicon
 
 #### Specification: #####
 # IOEncoder.output_dimension: size of the encoding of one IO
@@ -71,8 +80,6 @@ IOEncoder = FixedSizeEncoding(
 ######### EMBEDDING ########
 ############################
 
-embedding_output_dimension = 5
-
 IOEmbedder = SimpleEmbedding(
     IOEncoder = IOEncoder,
     output_dimension = embedding_output_dimension,
@@ -94,19 +101,16 @@ model = GlobalRulesPredictor(
     cfg = deepcoder_cfg, 
     IOEncoder = IOEncoder,
     IOEmbedder = IOEmbedder,
-    size_hidden = 64, 
+    size_hidden = size_hidden, 
     )
 
 loss = model.loss
 optimizer = model.optimizer
-nb_epochs = model.nb_epochs
 ProgramEncoder = model.ProgramEncoder
 
 ############################
 ######## DATASET ###########
 ############################
-
-dataset_size = 10_000
 
 dataset = Dataset(
     size = dataset_size,
@@ -120,8 +124,6 @@ dataset = Dataset(
     size_max = size_max,
     lexicon = lexicon,
     )
-
-batch_size = 500
 
 dataloader = torch.utils.data.DataLoader(
     dataset = dataset,
