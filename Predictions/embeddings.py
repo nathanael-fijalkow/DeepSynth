@@ -45,7 +45,7 @@ class SimpleEmbedding(nn.Module):
         e = self.hidden(e)
         e = torch.mean(e, 0)
         assert(e.size() == (self.IOEncoder.output_dimension, self.output_dimension))
-        return e
+        return torch.flatten(e)
 
     def forward(self, batch_IOs):
         """
@@ -53,7 +53,7 @@ class SimpleEmbedding(nn.Module):
         (len(batch_IOs), self.IOEncoder.output_dimension, self.output_dimension)
         """
         res = torch.stack([self.forward_IOs(IOs) for IOs in batch_IOs])
-        assert(res.size() == (len(batch_IOs), self.IOEncoder.output_dimension, self.output_dimension))
+        assert(res.size() == (len(batch_IOs), self.IOEncoder.output_dimension * self.output_dimension))
         return res
 
 class RNNEmbedding(nn.Module):
