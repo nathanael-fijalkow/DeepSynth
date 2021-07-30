@@ -3,6 +3,7 @@ import logging
 from torch._C import dtype
 
 from dsl import DSL
+from pcfg_logprob import LogProbPCFG
 from program import Program, Function, Variable, BasicPrimitive, New
 from type_system import Type, PolymorphicType, PrimitiveType, Arrow, List, UnknownType, INT, BOOL
 import torch
@@ -169,7 +170,7 @@ class LocalRulesPredictor(nn.Module):
 
         self.loss = lambda batch_grammar, batch_program:\
             - sum(grammar.log_probability_program(self.cfg.start, program)
-                for grammar,program in zip(grammars, programs))
+                  for grammar, program in zip(batch_grammar, batch_program))
         self.optimizer = torch.optim.Adam(self.parameters(), lr=0.1)
 
         H = IOEncoder.output_dimension * self.IOEmbedder.output_dimension
