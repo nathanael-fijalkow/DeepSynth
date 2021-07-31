@@ -169,7 +169,7 @@ class LocalRulesPredictor(nn.Module):
         self.IOEmbedder = IOEmbedder
 
         self.loss = lambda batch_grammar, batch_program:\
-            - sum(grammar.log_probability_program(self.cfg.start, program)
+            - sum(grammar.log_probability_program(grammar.start, program)
                   for grammar, program in zip(batch_grammar, batch_program))
 
         H = IOEncoder.output_dimension * self.IOEmbedder.output_dimension
@@ -212,6 +212,99 @@ class LocalRulesPredictor(nn.Module):
     def custom_collate(self, batch):
         return [batch[i][0] for i in range(len(batch))], torch.stack([batch[i][1] for i in range(len(batch))])
 
+
+
+
+class LocalBigramsPredictor(nn.Module):
+    '''
+    cfg_dictionary: dictionary {type_request: cfg}
+    primitive_types: dictionary {primitive: type}
+    IOEncoder: encodes inputs and outputs
+    IOEmbedder: embeds inputs and outputs
+    size_hidden: size for hidden layers
+    '''
+    def __init__(self, 
+        cfg_dictionary,
+        primitive_types, 
+        IOEncoder,
+        IOEmbedder,
+        ):
+        super(LocalGramsPredictor, self).__init__()
+
+        self.cfg_dictionary = cfg_dictionary
+        self.primitive_types = primitive_types
+        self.IOEncoder = IOEncoder
+        self.IOEmbedder = IOEmbedder
+
+        self.loss = lambda batch_grammar, batch_program:\
+            - sum(grammar.log_probability_program(grammar.start, program)
+                  for grammar, program in zip(batch_grammar, batch_program))
+
+        H = IOEncoder.output_dimension * self.IOEmbedder.output_dimension
+
+        self.symbolToIndex = {
+            symbol: index for index,symbol in enumerate(self.primitive_types)
+            }
+
+        # IMPORTANT: we do not predict variables!
+        self.number_of_primitives = len(self.primitive_types)
+        self.number_of_parents = self.number_of_primitives + 1 # could be None
+        self.maximum_arguments = max(len(self.primitive_types[primitive].arguments())
+                                     for primitive in self.primitive_types)
+        self.q_predictor = nn.Linear(H,
+             self.number_of_parents*self.maximum_arguments*self.number_of_primitives)
+
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=0.1)
+           
+    def forward(self, batch_IOs):
+        """
+        batch_IOs is a tensor of size
+        (batch_size, IOEncoder.output_dimension, IOEmbedder.output_dimension) 
+
+        returns: list of PCFGs
+        """
+        grammars = []
+        for x in batch_IOs:
+            x = self.IOEmbedder.forward([x])
+            x = self.q_predictor.view(self.number_of_parents, self.maximum_arguments, self.number_of_primitives)
+            x = nn.LogSoftmax(-1)(x)
+
+            #Figure out how to encode the type request in each IOs!!!
+            type_request = None 
+            # Will crash here...
+            cfg = self.cfg_dictionary[type_request]
+
+            rules = {}
+            for S in cfg.rules:
+                rules[S] = {}
+                if S[1]:
+                    parent_index = self.symbolToIndex[S[1][0]]
+                    argument_number = S[1][1]
+                else:
+                    parent_index = len(self.number_of_primitives) # None
+                    argument_number = 0
+
+                for j, P in enumerate(cfg.rules[S]):
+                    if isinstance(P, (BasicPrimitive, New)):
+                        primitive_index = self.symbolToIndex[P]
+                        rules[S][P] = cfg.rules[S][P], \
+                        x[parent_index, argument_number, primitive_index]
+                    else: # P is a variable
+                        rules[S][P] = cfg.rules[S][P], -1
+                        # Think about it. What should be the log probability
+                        # of a variable?
+            grammar = LogProbPCFG(cfg.start, 
+                rules, 
+                max_program_depth=cfg.max_program_depth)
+            grammar.clean()
+            grammars.append(grammar)
+        return grammars
+            
+    def ProgramEncoder(self, program): 
+        return program
+
+    def custom_collate(self, batch):
+        return [batch[i][0] for i in range(len(batch))], torch.stack([batch[i][1] for i in range(len(batch))])
 
 
 
