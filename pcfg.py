@@ -70,7 +70,7 @@ class PCFG:
                 self.rules[S], key=lambda P: self.rules[S][P][1]
             )
             self.vose_samplers[S] = vose.Sampler(
-                np.array([self.rules[S][P][1] for P in self.list_derivations[S]],dtype=np.float)
+                np.array([self.rules[S][P][1] for P in self.list_derivations[S]],dtype=float)
             )
 
     def normalise(self):
