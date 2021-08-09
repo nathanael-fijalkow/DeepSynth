@@ -267,6 +267,11 @@ class PCFG:
                 # Skip when there's only 1 possibility since no sampling is necessary
                 # Since the grammar is correctly defined we should never pop an empty stack
                 while len(self.list_derivations[current]) == 1:
+                    P = self.list_derivations[current][0]
+                    args_P, _ = self.rules[current][P]
+                    if args_P:
+                        for arg in args_P:
+                            context_stack.append(arg)
                     current = context_stack.pop()
 
                 # Get the derivation
@@ -281,10 +286,16 @@ class PCFG:
             # Pop the current context
             current = context_stack.pop()
             # If there's only 1 derivation skip
-            while context_stack and len(self.list_derivations[current]) == 1:
+            while len(self.list_derivations[current]) == 1:
+                P = self.list_derivations[current][0]
+                args_P, _ = self.rules[current][P]
+                if args_P:
+                    for arg in args_P:
+                        context_stack.append(arg)
+                elif not context_stack:
+                    # Reached terminal node
+                    return None
                 current = context_stack.pop()
-            if len(self.list_derivations[current]) == 1:
-                return None
             # Give log probs
             return np.log(np.array([self.rules[current][P][1] for P in self.list_derivations[current]], dtype=float))
 
@@ -320,7 +331,7 @@ class PCFG:
             # Context stack may contain potentially a lot of calls with 1 possible derivation
             while context_stack:
                 current = context_stack.pop()
-                assert len(self.list_derivations[current]) == 1
+                assert len(self.list_derivations[current]) == 1, f"Current: {current} has more than 1 derivation:{self.list_derivations[current]}"
                 P = self.list_derivations[current][0]
                 args_P, w = self.rules[current][P]
                 program = (P, program)
