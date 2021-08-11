@@ -242,6 +242,7 @@ class PCFG:
     def get_sbsur_sampler(self, S=None, seed=None):
         """
         Return an sbs ur sampler from this PCFG starting from non-terminal S or from start if S is None.
+        SBSUR won't return anything if the PCFG allows only one program.
         Returns a function: batch_size -> list[program]
         """
         from sbsur import SequenceGenerator, sample
