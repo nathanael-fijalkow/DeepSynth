@@ -16,3 +16,29 @@ def tuple2constlist(t, i = 0):
         return (t[i], tuple2constlist(t, i+1))
     else:
         return None
+
+
+def length(cons_list):
+    try:
+        _, queue = cons_list
+        return 1 + length(queue)
+    except:
+        return 0
+
+
+def cons_list2list(cons_list, l = None):
+    l = l or []
+    try:
+        x, queue = cons_list
+        l.append(x)
+        return cons_list2list(queue, l)
+    except:
+        return l
+
+
+def cons_list_split(cons_list, n):
+    if n == 0:
+        return None, cons_list
+    head, tail = cons_list
+    correct_length_part, rest = cons_list_split(tail, n - 1)
+    return (head, correct_length_part), rest
