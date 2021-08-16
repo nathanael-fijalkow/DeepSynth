@@ -256,64 +256,42 @@ def find_partition(numbers, target, maximum_new_groups):
     return [index for index, _ in groups if index]
 
 
+def __get_context_holes__(pcfg, p: cons_list) -> List[Context]:
+    lp = cons_list2list(p)
+    stack = [pcfg.start]
+    while lp:
+        S = stack.pop()
+        P = lp.pop()
+        args = pcfg.rules[S][P][0]
+        for arg in args:
+            stack.append(arg)
+    return stack
+
+
+def __is_fixing_one_of__(pcfg, p: cons_list, to_fix: List[Context]) -> bool:
+    lp = cons_list2list(p)
+    stack = [pcfg.start]
+    while lp:
+        S = stack.pop()
+        if S in to_fix:
+            return True
+        P = lp.pop()
+        args = pcfg.rules[S][P][0]
+        for arg in args:
+            stack.append(arg)
+    return False
+
+
 def __are_compatible__(pcfg, pa: cons_list, pb: cons_list) -> bool:
     """
     Check if the two prefix program const list are compatible
     i.e. if one of them does not fix a HOLE of the other (with the same context)
     """
-    lpa = cons_list2list(pa)
-    lpb = cons_list2list(pb)
-    stackA = [pcfg.start]
-    stackB = [pcfg.start]
-    while lpa and lpb:
-        Sa = stackA.pop()
-        Sb = stackB.pop()
-
-        Pa = lpa.pop()
-        Pb = lpb.pop()
-        argsA = pcfg.rules[Sa][Pa][0]
-        for arg in argsA:
-            stackA.append(arg)
-        argsB = pcfg.rules[Sb][Pb][0]
-        for arg in argsB:
-            stackB.append(arg)
-
-    common = None
-    for el in stackA:
-        if el in stackB:
-            if common:
-                common.append(el)
-            else:
-                common = [el]
-
-    if common:
-        while lpa:
-            Sa = stackA.pop()
-            Pa = lpa.pop()
-            argsA = pcfg.rules[Sa][Pa][0]
-            for arg in argsA:
-                stackA.append(arg)
-
-        while lpb:
-            Sb = stackB.pop()
-            Pb = lpb.pop()
-            argsB = pcfg.rules[Sb][Pb][0]
-            for arg in argsB:
-                stackB.append(arg)
-
-        new_common = None
-        for el in stackA:
-            if el in stackB:
-                if new_common:
-                    new_common.append(el)
-                else:
-                    new_common = [el]
-        return common == new_common
-
-
-
-
-    return True
+    holes_a = __get_context_holes__(pcfg, pa)
+    if __is_fixing_one_of__(pcfg, pb, holes_a):
+        return False
+    holes_b = __get_context_holes__(pcfg, pb)
+    return not __is_fixing_one_of__(pcfg, pa, holes_b)
 
 
 def all_compatible(pcfg, pa, lpb, i):
