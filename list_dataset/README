@@ -1,0 +1,5 @@
+Each file contains a pair
+(name, examples)
+where 
+* name is a string giving the name of the task (also used in the filename)
+* examples is a list of IOs. IOs is a pair of inputs and one output. Inputs are given as a cons list (with None at the end) of lists. Elements in the lists can be Int or Bool.

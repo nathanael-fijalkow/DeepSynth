@@ -1,28 +1,16 @@
 from collections import deque
 import pickle
 from math import exp
-<<<<<<< HEAD
 import logging
 import argparse
+import time
 
 from type_system import Type, PolymorphicType, PrimitiveType, Arrow, List, UnknownType, INT, BOOL
 from program import Program, Function, Variable, BasicPrimitive, New
 from cfg import CFG
 from pcfg import PCFG
 from dsl import DSL
-=======
-import time
-
-import logging
-import argparse
-
-from type_system import *
-from program import *
-from cfg import *
-from pcfg import *
-from dsl import *
 from program_as_list import reconstruct_from_compressed
->>>>>>> 2cade31e5c0fd0913fcdc898c267240787313e3f
 
 from Algorithms.heap_search import heap_search
 from Algorithms.heap_search_naive import heap_search_naive
@@ -32,7 +20,6 @@ from Algorithms.dfs import dfs
 from Algorithms.bfs import bfs
 from Algorithms.sort_and_add import sort_and_add
 from Algorithms.sqrt_sampling import sqrt_sampling, sqrt_sampling_with_sbsur
-
 
 
 logging_levels = {0:logging.INFO, 1:logging.DEBUG}
@@ -77,7 +64,7 @@ def run_algorithm(dsl, examples, pcfg, algorithm, name_algo, param):
             program = next(gen)
         except:
             search_time += time.perf_counter()
-            logging.info("Output the last program after {}".str(nb_programs))
+            logging.info("Output the last program after {}".format(nb_programs))
             break # no next program            
 
         # Reconstruction if needed
@@ -85,10 +72,10 @@ def run_algorithm(dsl, examples, pcfg, algorithm, name_algo, param):
             target_type = pcfg.start[0]
             program = reconstruct_from_compressed(program, target_type)
         search_time += time.perf_counter()
-        logging.debug('program found: {}'.str(program))
+        logging.debug('program found: {}'.format(program))
 
         if program == None:
-            logging.info("Output the last program after {}".str(nb_programs))
+            logging.info("Output the last program after {}".format(nb_programs))
             break
 
         nb_programs += 1
@@ -107,7 +94,7 @@ def run_algorithm(dsl, examples, pcfg, algorithm, name_algo, param):
         evaluation_time += time.perf_counter()
 
         if nb_programs % 100_000 == 0:
-            logging.info('tested {} programs'.str(nb_programs))
+            logging.info('tested {} programs'.format(nb_programs))
 
         if found:
             logging.info("\nSolution found: %s"%program)
@@ -139,10 +126,10 @@ list_algorithms = [
 for i in range_task:
     result = {}
 
-    with open(r'tmp/list_{}.pickle'.str(str(i)), 'rb') as f:
+    with open(r'tmp/list_{}.pickle'.format(i), 'rb') as f:
         name_task, dsl, pcfg, examples = pickle.load(f)
 
-    logging.info('\n####### Solving task number {} called {}:'.str(i, name_task))
+    logging.info('\n####### Solving task number {} called {}:'.format(i, name_task))
     logging.debug('Set of examples:\n %s'%examples)
     logging.debug('PCFG: %s'%str(pcfg))
     # logging.debug('PCFG: %s'%str(pcfg.rules[pcfg.start]))
@@ -151,7 +138,7 @@ for i in range_task:
         program, search_time, evaluation_time, nb_programs = run_algorithm(dsl, examples, pcfg, algo, name_algo, param)
         result[name_algo] = (name_task, search_time, evaluation_time, nb_programs)
 
-        with open('results_semantics/semantics_experiments_{}.pickle'.str(i), 'wb') as f:
+        with open('results_semantics/semantics_experiments_{}.pickle'.format(i), 'wb') as f:
             pickle.dump(result, f)
 
     result.clear()
