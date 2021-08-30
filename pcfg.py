@@ -270,18 +270,16 @@ class PCFG:
                 while len(self.list_derivations[current]) == 1:
                     P = self.list_derivations[current][0]
                     args_P, _ = self.rules[current][P]
-                    if args_P:
-                        for arg in args_P:
-                            context_stack.append(arg)
+                    for arg in args_P:
+                        context_stack.append(arg)
                     current = context_stack.pop()
 
                 # Get the derivation
                 P = self.list_derivations[current][i]
                 args_P, _ = self.rules[current][P]
-                if args_P:
-                    for arg in args_P:
-                        context_stack.append(arg)
-            # This is a valid program => No further sampling is required
+                for arg in args_P:
+                    context_stack.append(arg)
+            # If this is a valid program => No further sampling is required
             if len(context_stack) == 0:
                 return None
             # Pop the current context
@@ -290,10 +288,9 @@ class PCFG:
             while len(self.list_derivations[current]) == 1:
                 P = self.list_derivations[current][0]
                 args_P, _ = self.rules[current][P]
-                if args_P:
-                    for arg in args_P:
+                for arg in args_P:
                         context_stack.append(arg)
-                elif not context_stack:
+                if not context_stack:
                     # Reached terminal node
                     return None
                 current = context_stack.pop()
@@ -316,19 +313,15 @@ class PCFG:
                     P = self.list_derivations[current][0]
                     args_P, w = self.rules[current][P]
                     program = (P, program)
-                    if len(args_P) > 0:
-                        # Add new function to do
-                        for arg in args_P:
-                            context_stack.append(arg)
+                    for arg in args_P:
+                        context_stack.append(arg)
                     current = context_stack.pop()
 
                 P = self.list_derivations[current][i]
                 args_P, w = self.rules[current][P]
                 program = (P, program)
-                if len(args_P) > 0:
-                    # Add new function to do
-                    for arg in args_P:
-                        context_stack.append(arg)
+                for arg in args_P:
+                    context_stack.append(arg)
             # Context stack may contain potentially a lot of calls with 1 possible derivation
             while context_stack:
                 current = context_stack.pop()
@@ -336,10 +329,8 @@ class PCFG:
                 P = self.list_derivations[current][0]
                 args_P, w = self.rules[current][P]
                 program = (P, program)
-                if len(args_P) > 0:
-                    # Add new function to do
-                    for arg in args_P:
-                        context_stack.append(arg)
+                for arg in args_P:
+                    context_stack.append(arg)
             assert not call_stack
             return program
 
