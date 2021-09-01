@@ -30,11 +30,11 @@ class FixedSizeEncoding():
         self.nb_inputs_max = nb_inputs_max
         self.size_max = size_max
         self.output_dimension = 2 * size_max * (1 + nb_inputs_max)
-        self.lexicon = lexicon
+        self.lexicon = lexicon[:] # Make a copy since we modify it in place
         self.lexicon += ["PAD", "NOTPAD"]
-        self.lexicon_size = len(lexicon)
+        self.lexicon_size = len(self.lexicon)
         self.symbolToIndex = {
-            symbol: index for index,symbol in enumerate(lexicon)
+            symbol: index for index, symbol in enumerate(self.lexicon)
             }
 
     def _encode_single_arg(self, arg):
@@ -45,7 +45,7 @@ class FixedSizeEncoding():
         res += self.symbolToIndex["PAD"]
         if len(arg) > self.size_max:
             assert False, \
-                "This input is too long: ".format(arg)
+                "This input is too long: {}".format(arg)
         for i, e in enumerate(arg):
             res[2*i] = self.symbolToIndex[e]
             # Boolean flag: the previous value is not padding
@@ -64,7 +64,7 @@ class FixedSizeEncoding():
         inputs, output = IO
         if len(inputs) >= self.nb_inputs_max:
             assert False, \
-                "Too many inputs: ".format(IO)
+                "Too many inputs: {} (inputs={})".format(IO, inputs)
         for i in range(self.nb_inputs_max):  
             try:
                 input_ = inputs[i]
