@@ -44,9 +44,9 @@ class GlobalRulesPredictor(nn.Module):
         # layers
         H = IOEncoder.output_dimension * self.IOEmbedder.output_dimension
         self.hidden = nn.Sequential(
-            block(H, size_hidden, nn.LeakyReLU()),
+            block(H, size_hidden, nn.Sigmoid()),
             # block(size_hidden, size_hidden, nn.LeakyReLU()),
-            block(size_hidden, size_hidden, nn.LeakyReLU()),
+            block(size_hidden, size_hidden, nn.Sigmoid()),
         )
         # final layer
         self.final_layer = block(size_hidden, self.output_dimension, nn.Sigmoid())
