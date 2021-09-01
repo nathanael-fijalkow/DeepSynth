@@ -214,6 +214,8 @@ for task in tasks:
 
 # Data gathering
 for algo_index in range(len(list_algorithms)):
+    if os.path.exists(f"./algo_{algo_name}_results_semantic.pickle"):
+        continue
     data = gather_data(dataset, algo_index)
     algo_name = list_algorithms[algo_index][1]
     with open(f"./algo_{algo_name}_results_semantic.pickle", "wb") as fd:
