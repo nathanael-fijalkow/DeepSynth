@@ -39,7 +39,7 @@ class DSL:
     def __str__(self):
         s = "Print a DSL\n"
         for P in self.list_primitives:
-            s = s + "{}: {}\n".str(P, P.type)
+            s = s + "{}: {}\n".format(P, P.type)
         return s
 
     def instantiate_polymorphic_types(self, upper_bound_type_size=10):
