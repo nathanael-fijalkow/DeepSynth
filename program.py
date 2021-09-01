@@ -81,6 +81,9 @@ class Program:
     def __hash__(self):
         return self.hash
 
+    def is_constant(self):
+        return True
+
 class Variable(Program):
     def __init__(self, variable, type_=UnknownType(), probability={}):
         # assert isinstance(variable, int)
@@ -114,6 +117,9 @@ class Variable(Program):
             return result
         except (IndexError, ValueError, TypeError):
             return None
+
+    def is_constant(self):
+        return False
 
 class Function(Program):
     def __init__(self, function, arguments, type_=UnknownType(), probability={}):
@@ -173,6 +179,9 @@ class Function(Program):
                 return result
         except (IndexError, ValueError, TypeError):
             return None
+
+    def is_constant(self):
+        return all([self.function.is_constant()] + [arg.is_constant() for arg in self.arguments])
 
 class Lambda(Program):
     def __init__(self, body, type_=UnknownType(), probability={}):
@@ -263,3 +272,6 @@ class New(Program):
             return result
         except (IndexError, ValueError, TypeError):
             return None
+
+    def is_constant(self):
+        return self.body.is_constant()
