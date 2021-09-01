@@ -66,7 +66,7 @@ class DSL:
 
         new_primitive_types = {}
 
-        for P in self.list_primitives:
+        for P in self.list_primitives[:]:
             assert isinstance(P, (New, BasicPrimitive))
             type_P = P.type
             set_basic_types_P, set_polymorphic_types_P = type_P.decompose_type()
