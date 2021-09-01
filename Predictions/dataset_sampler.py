@@ -53,7 +53,8 @@ class Dataset(torch.utils.data.IterableDataset):
         output = None
         while flag or output == None:
             program = next(self.program_sampler)
-            nb_IOs = random.randint(1,self.nb_inputs_max)
+            if program.is_constant():
+                continue
             inputs = [[self.input_sampler.sample(type_) for type_ in self.arguments] for _ in range(nb_IOs)]
             try:
                 outputs = []
@@ -74,7 +75,7 @@ class Dataset(torch.utils.data.IterableDataset):
         # return self.IOEncoder.encode_IOs(IOs), self.ProgramEncoder(program)
     
     def __output_validation__(self, output):
-        if len(output) == 0: 
+        if len(output) == 0 or len(output) > self.input_sampler.size_max: 
             return False
         for e in output:
             if e not in self.lexicon:
