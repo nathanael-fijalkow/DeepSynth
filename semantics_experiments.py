@@ -1,144 +1,220 @@
-from collections import deque
+import torch
 import pickle
-from math import exp
-import logging
-import argparse
-import time
+import glob
+import os
 
-from type_system import Type, PolymorphicType, PrimitiveType, Arrow, List, UnknownType, INT, BOOL
-from program import Program, Function, Variable, BasicPrimitive, New
-from cfg import CFG
-from pcfg import PCFG
+from run_experiment import gather_data, list_algorithms
+from DSL.list import semantics, primitive_types
 from dsl import DSL
-from program_as_list import reconstruct_from_compressed
-
-from Algorithms.heap_search import heap_search
-from Algorithms.heap_search_naive import heap_search_naive
-from Algorithms.a_star import a_star
-from Algorithms.threshold_search import threshold_search
-from Algorithms.dfs import dfs
-from Algorithms.bfs import bfs
-from Algorithms.sort_and_add import sort_and_add
-from Algorithms.sqrt_sampling import sqrt_sampling, sqrt_sampling_with_sbsur
+from type_system import BOOL, Arrow, List, INT, Type
+from Predictions.IOencodings import FixedSizeEncoding, VariableSizeEncoding
+from Predictions.embeddings import SimpleEmbedding, RNNEmbedding
+from Predictions.models import GlobalRulesPredictor, LocalRulesPredictor
 
 
-logging_levels = {0:logging.INFO, 1:logging.DEBUG}
+## START OF MODEL CREATION
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--verbose', '-v', dest='verbose', default=0)
-parser.add_argument('--range_task_begin', '-rb', dest='range_task_begin', default=0)
-parser.add_argument('--range_task_end', '-re', dest='range_task_end', default=1)
-parser.add_argument('--timeout', '-t', dest='timeout', default=100)
-parser.add_argument('--total_number_programs', '-T', dest='total_number_programs', default=1_000_000)
-args,unknown = parser.parse_known_args()
 
-verbosity = int(args.verbose)
-logging.basicConfig(format='%(message)s', level=logging_levels[verbosity])
+############################
+##### Hyperparameters ######
+############################
 
-timeout = int(args.timeout)
-total_number_programs = int(args.total_number_programs)
-range_task = range(int(args.range_task_begin), int(args.range_task_end))
+max_program_depth = 4
 
-# Set of algorithms where we need to reconstruct the programs
-reconstruct = {dfs, bfs, threshold_search, a_star, sort_and_add, sqrt_sampling_with_sbsur}
+size_max = 10  # maximum number of elements in a list (input or output)
+nb_inputs_max = 2  # maximum number of inputs in an IO
+lexicon = list(range(30))  # all elements of a list must be from lexicon
+# only useful for VariableSizeEncoding
+encoding_output_dimension = 30  # fixing the dimension
 
-def run_algorithm(dsl, examples, pcfg, algorithm, name_algo, param):
-    '''
-    Run the algorithm until either timeout or 1M programs, and for each program record probability and time of output
-    '''
-    logging.info('\n## Running: %s'%algorithm.__name__)
-    search_time = 0
-    evaluation_time = 0
-    gen = algorithm(pcfg, **param)
-    found = False
-    if name_algo == "SQRT":
-        _ = next(gen)  
-        logging.debug('SQRT initialised')
-    nb_programs = 0
+embedding_output_dimension = 10
+# only useful for RNNEmbedding
+number_layers_RNN = 1
 
-    while (search_time + evaluation_time < timeout and nb_programs < total_number_programs):
+size_hidden = 64
 
-        # Searching for the next program
-        search_time -= time.perf_counter()
-        try:
-            program = next(gen)
-        except:
-            search_time += time.perf_counter()
-            logging.info("Output the last program after {}".format(nb_programs))
-            break # no next program            
+############################
+######### PCFG #############
+############################
 
-        # Reconstruction if needed
-        if algorithm in reconstruct:
-            target_type = pcfg.start[0]
-            program = reconstruct_from_compressed(program, target_type)
-        search_time += time.perf_counter()
-        logging.debug('program found: {}'.format(program))
+deepcoder = DSL(semantics, primitive_types)
+type_request = Arrow(List(INT), List(INT))
+deepcoder_cfg = deepcoder.DSL_to_CFG(
+    type_request, max_program_depth=max_program_depth)
+deepcoder_pcfg = deepcoder_cfg.CFG_to_Uniform_PCFG()
 
-        if program == None:
-            logging.info("Output the last program after {}".format(nb_programs))
-            break
+############################
+###### IO ENCODING #########
+############################
 
-        nb_programs += 1
-        logging.debug('probability: %s'%pcfg.probability_program(pcfg.start, program))
+# IO = [[I1, ...,Ik], O]
+# I1, ..., Ik, O are lists
+# IOs = [IO1, IO2, ..., IOn]
+# task = (IOs, program)
+# tasks = [task1, task2, ..., taskp]
 
-        # Evaluation of the program
-        evaluation_time -= time.perf_counter()
-        correct = True
-        i = 0
-        while correct and i < len(examples):
-            input_,output = examples[i]
-            correct = program.eval(dsl, input_, i) == output
-            i += 1
-        if correct:
-            found = True
-        evaluation_time += time.perf_counter()
+#### Specification: #####
+# IOEncoder.output_dimension: size of the encoding of one IO
+# IOEncoder.lexicon_size: size of the lexicon
+# IOEncoder.encode_IO: outputs a tensor of dimension IOEncoder.output_dimension
+# IOEncoder.encode_IOs: inputs a list of IO of size n
+# and outputs a tensor of dimension n * IOEncoder.output_dimension
 
-        if nb_programs % 100_000 == 0:
-            logging.info('tested {} programs'.format(nb_programs))
+IOEncoder = FixedSizeEncoding(
+    nb_inputs_max=nb_inputs_max,
+    lexicon=lexicon,
+    size_max=size_max,
+)
 
-        if found:
-            logging.info("\nSolution found: %s"%program)
-            logging.info('[NUMBER OF PROGRAMS]: %s'%nb_programs)
-            logging.info("[SEARCH TIME]: %s"%search_time)
-            logging.info("[EVALUATION TIME]: %s"%evaluation_time)
-            logging.info("[TOTAL TIME]: %s"%(evaluation_time + search_time))
-            return program, search_time, evaluation_time, nb_programs
 
-    logging.info("\nNot found")
-    logging.info('[NUMBER OF PROGRAMS]: %s'%nb_programs)
-    logging.info("[SEARCH TIME]: %s"%search_time)
-    logging.info("[EVALUATION TIME]: %s"%evaluation_time)
-    logging.info("[TOTAL TIME]: %s"%(evaluation_time + search_time))
-    return None, timeout, timeout, nb_programs
+# IOEncoder = VariableSizeEncoding(
+#     nb_inputs_max = nb_inputs_max,
+#     lexicon = lexicon,
+#     output_dimension = encoding_output_dimension,
+#     )
 
-list_algorithms = [
-    (heap_search, 'heap search', {}), 
-    # (heap_search_naive, 'heap search naive', {}), 
-    # (sqrt_sampling, 'SQRT', {}),
-    # (sqrt_sampling_with_sbsur, 'SQRT+SBS UR', {}),
-    # (a_star, 'A*', {}),
-    # (threshold_search, 'threshold', {'initial_threshold' : 0.0001, 'scale_factor' : 10}), 
-    # (bfs, 'bfs', {'beam_width' : 50000}),
-    # (dfs, 'dfs', {}), 
-    # (sort_and_add, 'sort and add', {}), 
-    ]
+print("IOEncoder.output_dimension", IOEncoder.output_dimension)
 
-for i in range_task:
-    result = {}
+############################
+######### EMBEDDING ########
+############################
 
-    with open(r'tmp/list_{}.pickle'.format(i), 'rb') as f:
-        name_task, dsl, pcfg, examples = pickle.load(f)
+IOEmbedder = SimpleEmbedding(
+    IOEncoder=IOEncoder,
+    output_dimension=embedding_output_dimension,
+    size_hidden=size_hidden,
+)
 
-    logging.info('\n####### Solving task number {} called {}:'.format(i, name_task))
-    logging.debug('Set of examples:\n %s'%examples)
-    logging.debug('PCFG: %s'%str(pcfg))
-    # logging.debug('PCFG: %s'%str(pcfg.rules[pcfg.start]))
-    for algo, name_algo, param in list_algorithms:
+IOEmbedder = RNNEmbedding(
+    IOEncoder=IOEncoder,
+    output_dimension=embedding_output_dimension,
+    size_hidden=size_hidden,
+    number_layers_RNN=number_layers_RNN,
+)
 
-        program, search_time, evaluation_time, nb_programs = run_algorithm(dsl, examples, pcfg, algo, name_algo, param)
-        result[name_algo] = (name_task, search_time, evaluation_time, nb_programs)
+#### Specification: #####
+# IOEmbedder.output_dimension: size of the output of the embedder
+# IOEmbedder.forward_IOs: inputs a list of IOs
+# and outputs the embedding of the encoding of the IOs
+# which is a tensor of dimension
+# (IOEmbedder.input_dimension, IOEmbedder.output_dimension)
+# IOEmbedder.forward: same but with a batch of IOs
 
-        with open('results_semantics/semantics_experiments_{}.pickle'.format(i), 'wb') as f:
-            pickle.dump(result, f)
+############################
+######### MODEL ############
+############################
 
-    result.clear()
+model = GlobalRulesPredictor(
+    cfg=deepcoder_cfg,
+    IOEncoder=IOEncoder,
+    IOEmbedder=IOEmbedder,
+    size_hidden=size_hidden,
+)
+
+# model = LocalRulesPredictor(
+#     cfg = deepcoder_cfg,
+#     IOEncoder = IOEncoder,
+#     IOEmbedder = IOEmbedder,
+#     # size_hidden = size_hidden,
+#     )
+
+loss = model.loss
+optimizer = model.optimizer
+
+MODEL_NAME = ""
+if isinstance(IOEncoder, FixedSizeEncoding):
+    MODEL_NAME += "fixed"
+else:
+    MODEL_NAME += "variable"
+if isinstance(IOEmbedder, SimpleEmbedding):
+    MODEL_NAME += "+simple"
+else:
+    MODEL_NAME += "+rnn"
+if isinstance(model, LocalRulesPredictor):
+    MODEL_NAME += "+local"
+else:
+    MODEL_NAME += "+global"
+print("Training model:", MODEL_NAME)
+
+if os.path.exists("./" + MODEL_NAME + "_ongoing.weights"):
+    model.load_state_dict(torch.load("./" + MODEL_NAME + "_ongoing.weights"))
+    print("Loaded weights")
+
+ProgramEncoder = model.ProgramEncoder
+
+## END OF MODEL CREATION
+
+# Load all tasks
+tasks = []
+for file in glob.glob("./list_dataset/*.pickle"):
+    with open(file, "rb") as fd:
+        (name, examples) = pickle.load(fd)
+        tasks.append((name, examples))
+print("Loaded", len(tasks), "tasks")
+
+
+def _get_type(el, fallback=None):
+    if isinstance(el, bool):
+        return BOOL
+    elif isinstance(el, int):
+        return INT
+    elif isinstance(el, list):
+        if len(el) > 0:
+            return List(_get_type(el[0]))
+        else:
+            return _get_type(fallback[0], fallback[1:])
+    elif isinstance(el, tuple):
+        assert el[-1] == None
+        return _get_type(el[0], el[1:-1])
+    assert False, f"Unknown type for:{el}"
+
+
+def get_type_request(examples):
+    input, output = examples[0]
+    return Arrow(_get_type(input[0], [i[0] for i, o in examples[1:]]), _get_type(output, [o for i, o in examples[1:]]))
+
+
+## Actual experiment
+
+def make_checker(dsl, examples):
+    def checker(program):
+        for example in examples:
+            input, output = example
+            out = program.eval_naive(dsl, input)
+            if output != out:
+                return False
+        return True
+    return checker
+
+
+dataset = []
+for task in tasks:
+    name, examples = task
+    type_request: Type = get_type_request(examples)
+    target_type = type_request.returns()
+    if isinstance(model, GlobalRulesPredictor) and type_request != Arrow(List(INT), List(INT)):
+        continue
+
+    examples = [(i, o) for i, o in examples if len(i[0]) <= IOEncoder.size_max and all(
+        [el in IOEncoder.symbolToIndex for el in i[0]]) and all([el in IOEncoder.symbolToIndex for el in o])]
+    if len(examples) == 0:
+        continue
+
+    dsl = DSL(semantics, primitive_types)
+    try:
+        ex = [[([i[0]], o) for i, o in examples]]
+        grammar = model(ex)[0]
+    except AssertionError as e:
+        continue
+    if not isinstance(model, LocalRulesPredictor):
+        grammar = model.reconstruct_grammars([grammar])[0]
+
+    dataset.append((name, grammar, make_checker(dsl, examples)))
+
+
+# Data gathering
+for algo_index in range(len(list_algorithms)):
+    data = gather_data(dataset, algo_index)
+    algo_name = list_algorithms[algo_index][1]
+    with open(f"./algo_{algo_name}_results_semantic.pickle", "wb") as fd:
+        pickle.dump(data, fd)
