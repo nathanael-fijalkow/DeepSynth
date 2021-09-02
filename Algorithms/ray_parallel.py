@@ -10,7 +10,7 @@ import time
 #   File "[..]/ray/actor.py", line 823, in __del__
 # AttributeError: 'NoneType' object has no attribute 'global_worker'
 # You need to apply this patch: https://github.com/ray-project/ray/pull/16955/commits/faa8d6b200f52d86fa5ace2506739d88a767c03b
-ray.init()
+ray.init(ignore_reinit_error=True)
 
 @ray.remote
 class Producer:
@@ -106,15 +106,19 @@ def start(producers):
 
 if __name__ == "__main__":
     def make_generator(k):
-        return lambda: range(k)
-    make_consume_fn = lambda: lambda x: x & 7 == 0
+        return lambda: (x for x in range(k))
+    make_consume_fn = lambda: lambda x: x == 7
     create_generators = [make_generator(k) for k in range(10)]
     producers, filters, from_queue, to_queue = make_parallel_pipelines(
         create_generators, make_consume_fn, 2, 100, 100, 1)
     waitable_producers = start(producers)
+    print("Producers have started.")
     waitable_filters = start(filters)
+    print("Filters have started.")
     ray.get(waitable_producers)
+    print("Producers have terminated.")
     ray.get(waitable_filters)
+    print("Filters have terminated.")
     from_queue.shutdown()
     print(to_queue.size())
     to_queue.shutdown()
