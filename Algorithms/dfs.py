@@ -22,7 +22,7 @@ def dfs(G : PCFG):
             yield partial_program
         else:
             S = non_terminals.pop()
-            for P in G.list_derivations[S]:
+            for P in G.rules[S]:
                 args_P, w = G.rules[S][P]
                 new_partial_program = (P, partial_program)
                 new_non_terminals = non_terminals.copy()
