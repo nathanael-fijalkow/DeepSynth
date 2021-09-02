@@ -1,11 +1,15 @@
 
 import typing
+import ray
+from ray.util.queue import Empty
 import tqdm
 from pcfg import PCFG
 import logging
 from program import Program
 import time
 from typing import Callable, Tuple
+import grammar_splitter
+from Algorithms.ray_parallel import start, make_parallel_pipelines
 
 from Algorithms.heap_search import heap_search
 from Algorithms.heap_search_naive import heap_search_naive
@@ -108,7 +112,130 @@ def run_algorithm(is_correct_program: Callable[[Program], bool], pcfg: PCFG, alg
     logging.debug("[SEARCH TIME]: %s" % search_time)
     logging.debug("[EVALUATION TIME]: %s" % evaluation_time)
     logging.debug("[TOTAL TIME]: %s" % (evaluation_time + search_time))
-    return None, timeout, timeout, nb_programs, cumulative_probability, probability
+    return None, search_time, evaluation_time, nb_programs, cumulative_probability, probability
+
+def insert_prefix(prefix, prog):
+    try:
+        head, tail = prog
+        return (head, insert_prefix(prefix, tail))
+    except:
+        return prefix
+
+def run_algorithm_parallel(is_correct_program: Callable[[Program], bool], pcfg: PCFG, algo_index: int, splits: int,
+n_filters: int = 4, transfer_queue_size: int = 500_000, transfer_batch_size: int = 10) -> Tuple[Program, float, float, int, float, float]:
+    '''
+    Run the algorithm until either timeout or 1M programs, and for each program record probability and time of output
+    return program, search_time, evaluation_time, nb_programs, cumulative_probability, probability
+    '''
+    algorithm, _, param = list_algorithms[algo_index]
+
+    @ray.remote
+    class DataCollectorActor:
+        def __init__(self, n_filters, n_producers):
+            self.search_times = [0] * n_producers
+            self.probabilities = [0] * n_producers
+            self.generated_programs = [0] * n_producers
+            self.evaluations_times = [0] * n_filters
+            self.evaluated_programs = [0] * n_filters
+
+        def add_search_data(self, index, t, probability):
+            self.search_times[index] += t
+            self.probabilities[index] += probability
+            self.generated_programs[index] += 1
+            if self.generated_programs[index] % 1000 == 0:
+                logging.info("\t\tGenerated {} programs ({:.1f} %) in {:.2f} s".format(
+                    self.generated_programs[index], self.probabilities[index] * 100, self.search_times[index]))
+
+        def add_evaluation_data(self, index, t):
+            self.evaluations_times[index] += t
+            self.evaluated_programs[index] += 1
+
+        def search_data(self):
+            return self.search_times, self.probabilities, self.generated_programs
+
+        def evaluation_data(self):
+            return self.evaluations_times, self.evaluated_programs
+
+    data_collector = DataCollectorActor.remote(n_filters, splits)
+
+    def bounded_generator(prefix, cur_pcfg, i):
+        if algorithm in reconstruct:
+            def new_gen():
+                gen = algorithm(cur_pcfg, **param)
+                target_type = pcfg.start[0]
+                try:
+                    while True:
+                        t = -time.perf_counter()
+                        p = next(gen)
+                        prog = reconstruct_from_compressed(insert_prefix(prefix, p), target_type)
+                        t += time.perf_counter()
+                        probability = pcfg.probability_program(pcfg.start, prog)
+                        data_collector.add_search_data.remote(i, t, probability)         
+                        yield prog
+                except StopIteration:
+                    return
+        else:
+            raise Exception("Unsupported for now")
+        return new_gen
+    make_generators = [bounded_generator(
+            prefix, pcfg, i) for i, (prefix, pcfg) in enumerate(grammar_splitter.split(pcfg, splits, alpha=1.05))]
+
+    def make_filter(i):
+        def evaluate(program):
+            t = -time.perf_counter()
+            found = is_correct_program(program)
+            t += time.perf_counter()
+            data_collector.add_evaluation_data.remote(i, t)
+            return found
+        return evaluate
+
+    producers, filters, transfer_queue, out = make_parallel_pipelines(
+        make_generators, make_filter, n_filters, transfer_queue_size, splits, transfer_batch_size)
+    start(filters)
+    logging.debug("\tStarted {} filters.".format(len(filters)))
+    start(producers)
+    logging.debug("\tStarted {} producers.".format(len(producers)))
+
+    found = False
+    while not found:
+        try:
+            program = out.get(timeout=30)
+            found = True
+        except Empty:
+            pass
+        search_times, cumulative_probabilities, nb_programs = ray.get(
+            data_collector.search_data.remote())
+        if sum(nb_programs) > total_number_programs:
+            break
+
+    logging.debug(
+        "\tFinished search found={}. Now shutting down...".format(found))
+    search_times, cumulative_probabilities, nb_programs = ray.get(data_collector.search_data.remote())
+    evaluation_times, evaluated_programs = ray.get(data_collector.evaluation_data.remote())
+    logging.info(
+        "\tStats: found={} generated programs={} evaluated programs={} covered={:.1f}%".format(found, sum(nb_programs), sum(evaluated_programs), 100*sum(cumulative_probabilities)))
+        
+    # Shutdown
+    for producer in producers:
+        try:
+            ray.kill(producer)
+        except ray.exceptions.RayActorError:
+            continue
+    for filter in filters:
+        try:
+            ray.kill(filter)
+        except ray.exceptions.RayActorError:
+            continue
+    transfer_queue.shutdown(True)
+    out.shutdown(True)
+
+    logging.info("\tShut down.")
+
+
+    if found:
+        probability = pcfg.probability_program(pcfg.start, program)
+        return program, search_times, evaluation_times, nb_programs, cumulative_probabilities, probability
+    return None, search_times, evaluation_times, nb_programs, cumulative_probabilities, 0
 
 
 def gather_data(dataset: typing.List[Tuple[str, PCFG, Callable]], algo_index: int) -> typing.List[Tuple[str, Tuple[Program, float, float, int, float, float]]]:
@@ -119,5 +246,18 @@ def gather_data(dataset: typing.List[Tuple[str, PCFG, Callable]], algo_index: in
     for task_name, pcfg, is_correct_program in tqdm.tqdm(dataset):
         logging.debug("## Task:", task_name)
         data = run_algorithm(is_correct_program, pcfg, algo_index)
+        output.append((task_name, data))
+    return output
+
+
+def gather_data_parallel(dataset: typing.List[Tuple[str, PCFG, Callable]], algo_index: int, splits: int) -> typing.List[Tuple[str, Tuple[Program, float, float, int, float, float]]]:
+    algorithm, _, _ = list_algorithms[algo_index]
+    logging.info('\n## Running: %s' % algorithm.__name__)
+    output = []
+
+    for task_name, pcfg, is_correct_program in tqdm.tqdm(dataset):
+        logging.debug("## Task:", task_name)
+        data = run_algorithm_parallel(
+            is_correct_program, pcfg, algo_index, splits)
         output.append((task_name, data))
     return output
