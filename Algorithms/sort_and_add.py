@@ -8,7 +8,16 @@ def sort_and_add(G : PCFG, init = 5, step = 5):
     A generator that enumerates all programs using incremental search over a DFS 
     '''
     size = init
-    logging.info("Initialising with size {}".format(size))
+    logging.debug("Initialising with size {}".format(size))
+
+    try:
+        G.list_derivations
+    except:
+        G.list_derivations = {}
+        for S in G.rules:
+            G.list_derivations[S] = sorted(
+                G.rules[S], key=lambda P: G.rules[S][P][1]
+            )
     G_truncated = truncate(G, size)
     gen = dfs(G_truncated)
     
@@ -17,7 +26,7 @@ def sort_and_add(G : PCFG, init = 5, step = 5):
             yield next(gen)
         except StopIteration:
             size += step
-            logging.info("Increasing size to {}".format(size))
+            logging.debug("Increasing size to {}".format(size))
             G_truncated = truncate(G, size)
             gen = dfs(G_truncated)
 

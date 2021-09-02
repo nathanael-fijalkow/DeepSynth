@@ -7,7 +7,6 @@ from heapq import heappush, heappop, heappushpop
 def bfs(G : PCFG, beam_width = 50_000):
     '''
     A generator that enumerates all programs using a BFS.
-    Assumes that the PCFG only generates programs of bounded depth.
     '''
     # We reverse the rules: they should be non-decreasing
     for S in G.rules:
@@ -24,6 +23,8 @@ def bfs(G : PCFG, beam_width = 50_000):
 
     while True:
         new_frontier = []
+        if len(frontier) == 0:
+            raise StopIteration
         while True:
             try:
                 (partial_program, non_terminals) = frontier.pop()
@@ -39,8 +40,6 @@ def bfs(G : PCFG, beam_width = 50_000):
                             new_non_terminals.append(arg)
                         if len(new_frontier) <= beam_width:
                             new_frontier.append((new_partial_program, new_non_terminals))
-                        # else:
-                        #     new_frontier.append((new_partial_program, new_non_terminals))
             except IndexError:
                 frontier = new_frontier
                 break

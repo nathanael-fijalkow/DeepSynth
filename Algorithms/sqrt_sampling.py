@@ -9,6 +9,14 @@ def sqrt_sampling_with_sbsur(G: PCFG, batch_size: int = 100, start = None):
     It uses Stochastic Beam Search and Unique Randomizer to sample unique programs.
     Note that contrary to sqrt_sampling, it yields compressed programs.
     """
+    try:
+        G.list_derivations
+    except:
+        G.list_derivations = {}
+        for S in G.rules:
+            G.list_derivations[S] = sorted(
+                G.rules[S], key=lambda P: G.rules[S][P][1]
+            )
     SQRT = sqrt_PCFG(G)
     start = start or SQRT.start
     sampler = SQRT.get_sbsur_sampler(start)

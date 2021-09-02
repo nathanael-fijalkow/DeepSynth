@@ -250,9 +250,21 @@ timeout = 20  # in seconds
 random.seed(seed)
 dsl = deepcoder
 pcfg = deepcoder_PCFG_t
-#list_algorithms = [(heap_search, 'heap search', {'dsl' : dsl, 'environments': {}}),(a_star, 'A*', {})]
-#list_algorithms = [(heap_search, 'heap search', {}), (sqrt_sampling, 'SQRT', {}), (dfs, 'dfs', {}), (threshold_search, 'threshold', {'initial_threshold' : 0.001, 'scale_factor' : 10}), (a_star, 'A*', {})]
-list_algorithms = [(heap_search, 'heap search', {}), (sqrt_sampling, 'SQRT', {}), (dfs, 'dfs', {}), (threshold_search, 'threshold', {'initial_threshold' : 0.0001, 'scale_factor' : 10}), (a_star, 'A*', {}), (bfs, 'bfs', {'beam_width' : 50000})]
+
+list_algorithms = [
+    (heap_search, 'heap search', {}),
+    (heap_search_naive, 'heap search naive', {}),
+    (sqrt_sampling, 'SQRT', {}),
+    (sqrt_sampling_with_sbsur, 'SQRT+SBS UR', {}),
+    (a_star, 'A*', {}),
+    (threshold_search, 'threshold', {'initial_threshold' : 0.0001, 'scale_factor' : 10}),
+    (bfs, 'bfs', {'beam_width' : 50000}),
+    (dfs, 'dfs', {}),
+    (sort_and_add, 'sort and add', {}),
+]
+# Set of algorithms where we need to reconstruct the programs
+reconstruct = {dfs, bfs, threshold_search, a_star,
+               sort_and_add, sqrt_sampling_with_sbsur}
 
 recompute_from_scratch = True
 
@@ -371,174 +383,4 @@ def plot_cumulative_vs_trials(PCFG, list_algorithms):
 
 plot_cumulative_vs_trials(pcfg, list_algorithms)
 
-
-
-###############################
-##########
-##
-#------------------------------
-# TO BE REMOVED
-##################
-# Create dataset #
-##################
-
-
-# imin = 1
-# imax = 11
-# timeout = 50  # in seconds
-# # total_number_programs = 1_000_000 # 1M programs
-# number_samples = 10
-# total_number_programs = 1_000_000 #10_000_000 # 1M programs
-
-
-# # # PCFG
-# # deepcoder = DSL(semantics, primitive_types, no_repetitions)
-# # t = Arrow(List(INT),List(INT))
-# # deepcoder_CFG_t = deepcoder.DSL_to_CFG(t)
-# # deepcoder_PCFG_t = deepcoder.DSL_to_Uniform_PCFG(t)
-# # deepcoder_PCFG_t.put_random_weights(alpha = .7)
-
-# # DATASET = create_dataset(deepcoder_PCFG_t)
-# # print(DATASET)
-
-
-# # Set of algorithms to test
-# list_algorithms = [(heap_search, 'heap search', {}), (dfs, 'dfs', {}), (threshold_search, 'threshold', {'initial_threshold' : 0.0001, 'scale_factor' : 10}), (sqrt_sampling, 'SQRT', {}), (a_star, 'A*', {})]
-# # (bfs, 'bfs', {"beam_width" : 5000})
-# # Set of PCFG
-# #PCFG_test = [(deepcoder, deepcoder_PCFG_t)]  # (dsl, PCFG)
-
-# # First experiment
-
-
-# # def plot_cumulative_vs_time(PCFG, list_algorithms, list_result):
-# # 	'''
-# # 	Retrieve the results and plot
-# # 	'''
-# # 	min_proba = 1
-# # 	for i, (algorithm, name, param) in enumerate(list_algorithms):
-# # 		# if param == []:
-# # 		# 	with open('experiment_results/proba_vs_search_time_%s_%s_%s.bin' % (G_name, alpha, algorithm.__name__), 'rb') as f:
-# # 		# 		result = pickle.load(f)
-# # 		# else:
-# # 		# 	with open('experiment_results/proba_vs_search_time_%s_%s_%s_%s.bin' % (G_name, alpha, algorithm.__name__, param[0]), 'rb') as f:
-# # 		# 		result = pickle.load(f)
-# # 		result = list_results[i]
-# # 		min_proba = min(min_proba,result[-1][0])
-# # 		#plt.scatter([x for (x,y) in result], [i for i in range(len(result))], label = name, s = 8)
-# # 		plt.scatter([x for (x,y) in result], [y for (x,y) in result], label = name, s = 8)
-
-
-
-# # 	#min_proba = 0.5
-# # 	plt.xlim((0,min_proba))
-# # 	plt.legend()
-# # 	plt.xlabel("cumulative probability")
-# # 	plt.ylabel("search time (in seconds)")
-# # 	plt.title('PCFG')
-# # 	# plt.xscale('log')
-# # 	plt.yscale('log')
-# # 	plt.show()
-# # 	plt.savefig("images/proba_vs_search_time_%s.png" % 'PCFG', dpi=300, bbox_inches='tight')
-# # 	plt.clf()
-
-
-
-# # Second experiment: log search time versus log proba
-# def experiment_probability_vs_time(dataset, run_algo):
-# 	result = []
-# 	for program,proba in dataset:
-# 		hash_program = str(program)
-# 		if hash_program in run_algo:
-# 			result.append((proba,run_algo[hash_program][1]))
-# 		else:
-# 			result.append((proba, timeout))
-# 	return result
-
-# def plot_probability_vs_time(PCFG, list_algorithms, list_result):
-# 	'''
-# 	Retrieve the results and plot
-# 	'''
-# 	min_proba = 1
-# 	for i, (algorithm, name, param) in enumerate(list_algorithms):
-# 		# if param == []:
-# 		# 	with open('experiment_results/proba_vs_search_time_%s_%s_%s.bin' % (G_name, alpha, algorithm.__name__), 'rb') as f:
-# 		# 		result = pickle.load(f)
-# 		# else:
-# 		# 	with open('experiment_results/proba_vs_search_time_%s_%s_%s_%s.bin' % (G_name, alpha, algorithm.__name__, param[0]), 'rb') as f:
-# 		# 		result = pickle.load(f)
-# 		result = list_results[i]
-# 		min_proba = min(min_proba,result[-1][0])
-# 		#plt.scatter([x for (x,y) in result], [i for i in range(len(result))], label = name, s = 8)
-# 		plt.scatter([x for (x,y) in result], [y for (x,y) in result], label = name, s = 8)
-
-# 	#min_proba = 0.5
-# 	#plt.xlim((0,min_proba))
-# 	plt.legend()
-# 	plt.xlabel("probability")
-# 	plt.ylabel("search time (in seconds)")
-# 	plt.title('PCFG')
-# 	plt.xscale('log')
-# 	plt.yscale('log')
-# 	plt.show()
-# 	plt.savefig("images/proba_vs_search_time_%s.png" % 'PCFG', dpi=300, bbox_inches='tight')
-# 	plt.clf()
-
-# # Third experiment: enumeration time
-# def experiment_enumeration_time(run_algo):
-# 	result = [run_algo[e][1] for e in run_algo] #N, chrono, proba
-# 	result.sort()
-# 	return result
-
-# def plot_enumeration_time(PCFG, list_algorithms, list_result):
-# 	'''
-# 	Retrieve the results and plot
-# 	'''
-# 	for i, (algorithm, name, param) in enumerate(list_algorithms):
-# 		# if param == []:
-# 		# 	with open('experiment_results/proba_vs_search_time_%s_%s_%s.bin' % (G_name, alpha, algorithm.__name__), 'rb') as f:
-# 		# 		result = pickle.load(f)
-# 		# else:
-# 		# 	with open('experiment_results/proba_vs_search_time_%s_%s_%s_%s.bin' % (G_name, alpha, algorithm.__name__, param[0]), 'rb') as f:
-# 		# 		result = pickle.load(f)
-# 		result = list_results[i]
-# 		#plt.scatter([x for (x,y) in result], [i for i in range(len(result))], label = name, s = 8)
-# 		plt.scatter([x for x in range(1,len(result)+1)], result, label = name, s = 8)
-
-# 	#min_proba = 0.5
-# 	#plt.xlim((0,min_proba))
-# 	plt.legend()
-# 	plt.xlabel("number of programs")
-# 	plt.ylabel("time (in seconds)")
-# 	plt.title('PCFG')
-# 	#plt.xscale('log')
-# 	plt.yscale('log')
-# 	plt.show()
-# 	plt.savefig("images/proba_vs_search_time_%s.png" % 'PCFG', dpi=300, bbox_inches='tight')
-# 	plt.clf()
-
-# list_algorithms_2 = [(heap_search, 'heap search', {}),(a_star, 'A*', {})]
-
-
-# list_results = []
-# for algo, name, param in list_algorithms_2:
-# 	globals()[name + "_search_run"] = run_algorithm(deepcoder, deepcoder_PCFG_t, algo, param)
-# 	# with open('experiment_results/proba_vs_search_time_%s_%s_%s.bin' % (G_name, alpha, algorithm.__name__), 'wb') as f:
-# 	# 	pickle.dump(name + "_search_run", f)
-# 	globals()[name + "_search_run_2"] = experiment_enumeration_time(globals()[name + "_search_run"])
-# 	list_results.append(globals()[name + "_search_run_2"])
-# 	# print(globals()[name + "_search_run_2"][-1])
-
-# #print(list_results[0])
-# plot_enumeration_time(deepcoder_PCFG_t, list_algorithms_2, list_results)
-
-#print(heap_search_run)
-#dfs_search_run = run_algorithm(deepcoder, deepcoder_PCFG_t, dfs, [])
-
-
-
-# first = experiment_cumulative_vs_time(heap_search_run)
-# print(first[-1])
-# second = experiment_cumulative_vs_time(dfs_search_run)
-# print(second[-1])
 
