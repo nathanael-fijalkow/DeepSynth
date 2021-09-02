@@ -32,7 +32,6 @@ total_number_programs = 1_000_000
 
 list_algorithms = [
     (heap_search, 'heap search', {}),
-    (heap_search_naive, 'heap search naive', {}),
     (sqrt_sampling, 'SQRT', {}),
     (sqrt_sampling_with_sbsur, 'SQRT+SBS UR', {}),
     (a_star, 'A*', {}),
@@ -40,6 +39,7 @@ list_algorithms = [
     (bfs, 'bfs', {'beam_width' : 50000}),
     (dfs, 'dfs', {}),
     (sort_and_add, 'sort and add', {}),
+    # (heap_search_naive, 'heap search naive', {}),
 ]
 # Set of algorithms where we need to reconstruct the programs
 reconstruct = {dfs, bfs, threshold_search, a_star,
