@@ -122,7 +122,7 @@ def insert_prefix(prefix, prog):
         return prefix
 
 def run_algorithm_parallel(is_correct_program: Callable[[Program], bool], pcfg: PCFG, algo_index: int, splits: int,
-n_filters: int = 4, transfer_queue_size: int = 500_000, transfer_batch_size: int = 10) -> Tuple[Program, float, float, int, float, float]:
+                           n_filters: int = 4, transfer_queue_size: int = 500_000, transfer_batch_size: int = 10) -> Tuple[Program, float, typing.List[float], typing.List[float], typing.List[int], typing.List[float], float]:
     '''
     Run the algorithm until either timeout or 1M programs, and for each program record probability and time of output
     return program, search_time, evaluation_time, nb_programs, cumulative_probability, probability
@@ -177,8 +177,12 @@ n_filters: int = 4, transfer_queue_size: int = 500_000, transfer_batch_size: int
         else:
             raise Exception("Unsupported for now")
         return new_gen
+    
+    grammar_split_time = - time.perf_counter()
+    splits = grammar_splitter.split(pcfg, splits, alpha=1.05)
+    grammar_split_time += time.perf_counter() 
     make_generators = [bounded_generator(
-            prefix, pcfg, i) for i, (prefix, pcfg) in enumerate(grammar_splitter.split(pcfg, splits, alpha=1.05))]
+            prefix, pcfg, i) for i, (prefix, pcfg) in enumerate(splits)]
 
     def make_filter(i):
         def evaluate(program):
@@ -234,8 +238,8 @@ n_filters: int = 4, transfer_queue_size: int = 500_000, transfer_batch_size: int
 
     if found:
         probability = pcfg.probability_program(pcfg.start, program)
-        return program, search_times, evaluation_times, nb_programs, cumulative_probabilities, probability
-    return None, search_times, evaluation_times, nb_programs, cumulative_probabilities, 0
+        return program, grammar_split_time, search_times, evaluation_times, nb_programs, cumulative_probabilities, probability
+    return None, grammar_split_time, search_times, evaluation_times, nb_programs, cumulative_probabilities, 0
 
 
 def gather_data(dataset: typing.List[Tuple[str, PCFG, Callable]], algo_index: int) -> typing.List[Tuple[str, Tuple[Program, float, float, int, float, float]]]:
@@ -250,7 +254,7 @@ def gather_data(dataset: typing.List[Tuple[str, PCFG, Callable]], algo_index: in
     return output
 
 
-def gather_data_parallel(dataset: typing.List[Tuple[str, PCFG, Callable]], algo_index: int, splits: int) -> typing.List[Tuple[str, Tuple[Program, float, float, int, float, float]]]:
+def gather_data_parallel(dataset: typing.List[Tuple[str, PCFG, Callable]], algo_index: int, splits: int) -> typing.List[Tuple[str, Tuple[Program, float, typing.List[float], typing.List[float], typing.List[int], typing.List[float], float]]]:
     algorithm, _, _ = list_algorithms[algo_index]
     logging.info('\n## Running: %s' % algorithm.__name__)
     output = []
