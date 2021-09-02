@@ -90,8 +90,8 @@ def run_algorithm(pcfg, algo_index):
 			row = program, search_time, probability, cumulative_probability
 			result.append(row)
 
-		if nb_programs % 10_000 == 0:
-			logging.debug('tested {} programs'.format(nb_programs))
+		# if nb_programs % 10_000 == 0:
+		# 	logging.debug('tested {} programs'.format(nb_programs))
 
 	return result
 

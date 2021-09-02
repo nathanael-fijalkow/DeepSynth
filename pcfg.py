@@ -186,20 +186,6 @@ class PCFG:
             # assert best_probability > 0
             self.max_probability[S] = best_program
 
-    # def __getstate__(self):
-    #     state = dict(self.__dict__)
-    #     del state["vose_samplers"]
-    #     return state
-
-    # def __setstate__(self, d):
-    #     self.__dict__ = d
-    #     self.vose_samplers = {
-    #         S: vose.Sampler(
-    #             np.array([self.rules[S][P][1] for P in self.list_derivations[S]])
-    #         )
-    #         for S in self.rules
-    #     }
-
     def sampling(self):
         """
         A generator that samples programs according to the PCFG G
