@@ -12,14 +12,10 @@ Anonymous
 
 ### Abstract
 
- _We consider the problem of automatically constructing com-
-puter programs from input-output examples. We investigate
-how to augment probabilistic and neural program synthe-
-sis methods with new search algorithms, proposing a frame-
-work called distribution-based search. Within this framework,
+ _We consider the problem of automatically constructing computer programs from input-output examples. We investigate
+how to augment probabilistic and neural program synthesis methods with new search algorithms, proposing a framework called distribution-based search. Within this framework,
 we introduce two new search algorithms: HEAP SEARCH,
-an enumerative method, and SQRT SAMPLING, a proba-
-bilistic method. We prove certain optimality guarantees for
+an enumerative method, and SQRT SAMPLING, a probabilistic method. We prove certain optimality guarantees for
 both methods, show how they integrate with probabilistic
 and neural techniques, and demonstrate how they can operate
 at scale across parallel compute environments. Collectively
