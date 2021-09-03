@@ -11,6 +11,7 @@ from Predictions.IOencodings import FixedSizeEncoding, VariableSizeEncoding
 from Predictions.embeddings import SimpleEmbedding, RNNEmbedding
 from Predictions.models import GlobalRulesPredictor, LocalRulesPredictor
 
+datataset = "dreamcoder"
 
 ## START OF MODEL CREATION
 
@@ -215,8 +216,9 @@ for task in tasks:
 # Data gathering
 for algo_index in range(len(list_algorithms)):
     algo_name = list_algorithms[algo_index][1]
-    if os.path.exists(f"./algo_{algo_name}_results_semantic.pickle"):
+    filename = f"./algo_{algo_name}_model_{MODEL_NAME}_dataset_{dataset}_results_semantic.pickle"
+    if os.path.exists(filename):
         continue
     data = gather_data(dataset, algo_index)
-    with open(f"./algo_{algo_name}_results_semantic.pickle", "wb") as fd:
+    with open(filename, "wb") as fd:
         pickle.dump(data, fd)
