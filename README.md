@@ -8,7 +8,7 @@ This is the repository for the code of the paper **"Scaling Neural Program Synth
 Anonymous
 
 
-![Figure](https://github.com/nathanael-fijalkow/DeepSynth/raw/master/main_figure.png)
+![Figure](https://github.com/nathanael-fijalkow/DeepSynth/raw/main/main_figure.png)
 
 ### Abstract
 
