@@ -171,9 +171,10 @@ def run_algorithm_parallel(is_correct_program: Callable[[Program], bool], pcfg: 
                     while True:
                         t = -time.perf_counter()
                         p = next(gen)
-                        prog = reconstruct_from_compressed(insert_prefix(prefix, p), target_type)
+                        prog = insert_prefix(prefix, p)
                         t += time.perf_counter()
-                        probability = pcfg.probability_program(pcfg.start, prog)
+                        prog_r = reconstruct_from_compressed(prog, target_type)
+                        probability = pcfg.probability_program(pcfg.start, prog_r)
                         data_collector.add_search_data.remote(i, t, probability)         
                         yield prog
                 except StopIteration:
