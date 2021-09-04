@@ -283,7 +283,7 @@ class PCFG:
             # Give log probs
             return np.log(np.array([self.rules[current][P][1] for P in self.list_derivations[current]], dtype=float))
 
-        gen = SequenceGenerator(get_logprobs, max_categories, seed)
+        gen = SequenceGenerator(lambda x:[get_logprobs(el) for el in x], max_categories, seed)
 
         # int list -> Program cons list
         def seq2prog(sequence):
