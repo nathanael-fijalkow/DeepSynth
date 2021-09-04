@@ -1,3 +1,4 @@
+from program_as_list import evaluation_from_compressed
 import torch
 import pickle
 import glob
@@ -179,12 +180,20 @@ def get_type_request(examples):
 
 def make_checker(dsl, examples):
     def checker(program):
-        for example in examples:
-            input, output = example
-            out = program.eval_naive(dsl, input)
-            if output != out:
-                return False
-        return True
+        if isinstance(program, tuple):
+            for example in examples:
+                input, output = example
+                out = evaluation_from_compressed(program, dsl, input, type_request.returns())
+                if output != out:
+                    return False
+            return True
+        else:
+            for example in examples:
+                input, output = example
+                out = program.eval_naive(dsl, input)
+                if output != out:
+                    return False
+            return True
     return checker
 
 

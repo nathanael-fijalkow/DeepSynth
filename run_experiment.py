@@ -73,10 +73,7 @@ def run_algorithm(is_correct_program: Callable[[Program], bool], pcfg: PCFG, alg
                 "Output the last program after {}".format(nb_programs))
             break  # no next program
 
-        # Reconstruction if needed
-        if algorithm in reconstruct:
-            target_type = pcfg.start[0]
-            program = reconstruct_from_compressed(program, target_type)
+  
         search_time += time.perf_counter()
         logging.debug('program found: {}'.format(program))
 
@@ -86,7 +83,14 @@ def run_algorithm(is_correct_program: Callable[[Program], bool], pcfg: PCFG, alg
             break
 
         nb_programs += 1
-        probability = pcfg.probability_program(pcfg.start, program)
+        # Reconstruction if needed
+        if algorithm in reconstruct:
+            target_type = pcfg.start[0]
+            program_r = reconstruct_from_compressed(program, target_type)
+            probability = pcfg.probability_program(pcfg.start, program_r)
+        else:
+            probability = pcfg.probability_program(pcfg.start, program)
+
         cumulative_probability += probability
         logging.debug('probability: %s' %
                       probability)
