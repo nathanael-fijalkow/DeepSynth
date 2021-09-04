@@ -75,7 +75,7 @@ def run_algorithm(is_correct_program: Callable[[Program], bool], pcfg: PCFG, alg
 
   
         search_time += time.perf_counter()
-        logging.debug('program found: {}'.format(program))
+        # logging.debug('program found: {}'.format(program))
 
         if program == None:
             logging.debug(
@@ -92,8 +92,8 @@ def run_algorithm(is_correct_program: Callable[[Program], bool], pcfg: PCFG, alg
             probability = pcfg.probability_program(pcfg.start, program)
 
         cumulative_probability += probability
-        logging.debug('probability: %s' %
-                      probability)
+        # logging.debug('probability: %s' %
+        #               probability)
 
         # Evaluation of the program
         evaluation_time -= time.perf_counter()
@@ -104,18 +104,18 @@ def run_algorithm(is_correct_program: Callable[[Program], bool], pcfg: PCFG, alg
             logging.debug('tested {} programs'.format(nb_programs))
 
         if found:
-            logging.debug("\nSolution found: %s" % program)
-            logging.debug('[NUMBER OF PROGRAMS]: %s' % nb_programs)
-            logging.debug("[SEARCH TIME]: %s" % search_time)
-            logging.debug("[EVALUATION TIME]: %s" % evaluation_time)
-            logging.debug("[TOTAL TIME]: %s" % (evaluation_time + search_time))
+            # logging.debug("\nSolution found: %s" % program)
+            # logging.debug('[NUMBER OF PROGRAMS]: %s' % nb_programs)
+            # logging.debug("[SEARCH TIME]: %s" % search_time)
+            # logging.debug("[EVALUATION TIME]: %s" % evaluation_time)
+            # logging.debug("[TOTAL TIME]: %s" % (evaluation_time + search_time))
             return program, search_time, evaluation_time, nb_programs, cumulative_probability, probability
 
-    logging.debug("\nNot found")
-    logging.debug('[NUMBER OF PROGRAMS]: %s' % nb_programs)
-    logging.debug("[SEARCH TIME]: %s" % search_time)
-    logging.debug("[EVALUATION TIME]: %s" % evaluation_time)
-    logging.debug("[TOTAL TIME]: %s" % (evaluation_time + search_time))
+    # logging.debug("\nNot found")
+    # logging.debug('[NUMBER OF PROGRAMS]: %s' % nb_programs)
+    # logging.debug("[SEARCH TIME]: %s" % search_time)
+    # logging.debug("[EVALUATION TIME]: %s" % evaluation_time)
+    # logging.debug("[TOTAL TIME]: %s" % (evaluation_time + search_time))
     return None, search_time, evaluation_time, nb_programs, cumulative_probability, probability
 
 def insert_prefix(prefix, prog):
