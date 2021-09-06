@@ -127,7 +127,7 @@ def plot():
 		color = sc.get_facecolors()[0].tolist()
 		plt.fill_between(timepoints, result_top, result_low, facecolor = color, alpha=0.2)
 
-	plt.legend(loc = 'top left')
+	plt.legend(loc = 'upper left')
 	plt.xlim((1e-1,timeout))
 	plt.ticklabel_format(axis='y', style='sci', scilimits=(3,5))
 	plt.xlabel('time (in seconds)')
