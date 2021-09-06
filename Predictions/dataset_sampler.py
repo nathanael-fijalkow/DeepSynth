@@ -49,12 +49,14 @@ class Dataset(torch.utils.data.IterableDataset):
         return (self.__single_data__() for i in range(self.size))
 
     def __single_data__(self):
+        # print("generating...")
         flag = True
         output = None
         while flag or output == None:
             program = next(self.program_sampler)
-            if program.is_constant():
-                continue
+            while program.is_constant():
+                program = next(self.program_sampler)
+            nb_IOs = random.randint(1, self.nb_inputs_max)
             inputs = [[self.input_sampler.sample(type_) for type_ in self.arguments] for _ in range(nb_IOs)]
             try:
                 outputs = []
@@ -69,11 +71,14 @@ class Dataset(torch.utils.data.IterableDataset):
             except:
                 pass
         
+        # print("\tprogram:", program)
         IOs = [[I,O] for I,O in zip(inputs, outputs)]
         logging.debug('Found a program:\n{}\nand inputs:\n{}'.format(program,IOs))
-        return IOs, self.ProgramEncoder(program)
+        return IOs, self.ProgramEncoder(program), program
         # return self.IOEncoder.encode_IOs(IOs), self.ProgramEncoder(program)
     
+
+
     def __output_validation__(self, output):
         if len(output) == 0 or len(output) > self.input_sampler.size_max: 
             return False
@@ -96,7 +101,7 @@ class Input_sampler():
 
     def sample(self, type):
         if type.__eq__(List(INT)):
-            size = random.randint(1,self.size_max)
+            size = random.randint(1, self.size_max)
             res = [random.choice(self.lexicon) for _ in range(size)]
             return res
         assert(False)
