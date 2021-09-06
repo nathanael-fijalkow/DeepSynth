@@ -259,7 +259,7 @@ def gather_data(dataset: typing.List[Tuple[str, PCFG, Callable]], algo_index: in
     return output
 
 
-def gather_data_parallel(dataset: typing.List[Tuple[str, PCFG, Callable]], algo_index: int, splits: int) -> typing.List[Tuple[str, Tuple[Program, float, typing.List[float], typing.List[float], typing.List[int], typing.List[float], float]]]:
+def gather_data_parallel(dataset: typing.List[Tuple[str, PCFG, Callable]], algo_index: int, splits: int, n_filters: int = 4, transfer_queue_size: int = 500_000, transfer_batch_size: int = 10) -> typing.List[Tuple[str, Tuple[Program, float, typing.List[float], typing.List[float], typing.List[int], typing.List[float], float]]]:
     algorithm, _, _ = list_algorithms[algo_index]
     logging.info('\n## Running: %s' % algorithm.__name__)
     output = []
@@ -267,6 +267,6 @@ def gather_data_parallel(dataset: typing.List[Tuple[str, PCFG, Callable]], algo_
     for task_name, pcfg, is_correct_program in tqdm.tqdm(dataset):
         logging.debug("## Task:", task_name)
         data = run_algorithm_parallel(
-            is_correct_program, pcfg, algo_index, splits)
+            is_correct_program, pcfg, algo_index, splits, n_filters, transfer_queue_size, transfer_batch_size)
         output.append((task_name, data))
     return output
