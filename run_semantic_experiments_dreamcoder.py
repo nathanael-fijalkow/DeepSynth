@@ -25,7 +25,7 @@ max_program_depth = 4
 
 size_max = 10  # maximum number of elements in a list (input or output)
 nb_inputs_max = 2  # maximum number of inputs in an IO
-lexicon = list(range(30))  # all elements of a list must be from lexicon
+lexicon = list(range(-30, 30))  # all elements of a list must be from lexicon
 # only useful for VariableSizeEncoding
 encoding_output_dimension = 30  # fixing the dimension
 
@@ -81,11 +81,11 @@ print("IOEncoder.output_dimension", IOEncoder.output_dimension)
 ######### EMBEDDING ########
 ############################
 
-IOEmbedder = SimpleEmbedding(
-    IOEncoder=IOEncoder,
-    output_dimension=embedding_output_dimension,
-    size_hidden=size_hidden,
-)
+# IOEmbedder = SimpleEmbedding(
+#     IOEncoder=IOEncoder,
+#     output_dimension=embedding_output_dimension,
+#     size_hidden=size_hidden,
+# )
 
 IOEmbedder = RNNEmbedding(
     IOEncoder=IOEncoder,
@@ -138,8 +138,8 @@ else:
     MODEL_NAME += "+global"
 print("Training model:", MODEL_NAME)
 
-if os.path.exists("./" + MODEL_NAME + "_ongoing.weights"):
-    model.load_state_dict(torch.load("./" + MODEL_NAME + "_ongoing.weights"))
+if os.path.exists("./" + MODEL_NAME + ".weights"):
+    model.load_state_dict(torch.load("./" + MODEL_NAME + ".weights"))
     print("Loaded weights")
 
 ProgramEncoder = model.ProgramEncoder
