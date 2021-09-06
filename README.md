@@ -67,12 +67,12 @@ All of the files mentioned in this section are located in the root folder and fo
 
 Here is a short summary of each experiment:
 
-- ```run_syntactic_experiments.py``` produce a list of all programs generated under Xsec of search time by all algorithms.
-- ```run_semantic_experiments_<dataset>.py``` try to find solutions using an ANN to predict the grammar and for each algorithm logs the search data for the  corresponding ```<dataset>```. The suffix parallel can also be found indicating that the algorithms are run in parallel. The semantics experiments in the paper used a trained model.
+- ```run_random_PCFG_search.py``` produce a list of all programs generated under Xsec of search time by all algorithms.
+- ```run_experiments_<dataset>.py``` try to find solutions using an ANN to predict the grammar and for each algorithm logs the search data for the  corresponding ```<dataset>```. The suffix parallel can also be found indicating that the algorithms are run in parallel. The semantics experiments in the paper used a trained model.
 
 ### Quick guide to using ANN to predict a grammar
 
-Is it heavily inspired by the file ```run_semantics_experiments.py```.
+Is it heavily inspired by the file ```run_experiments_<dataset>.py```.
 
 First we create a prediction model:
 
