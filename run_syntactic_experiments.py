@@ -4,6 +4,7 @@ import random
 import csv
 import matplotlib.pyplot as plt
 import numpy as np
+from math import log10
 
 from type_system import Type, PolymorphicType, PrimitiveType, Arrow, List, UnknownType, INT, BOOL
 from program import Program, Function, Variable, BasicPrimitive, New
@@ -90,6 +91,7 @@ def run_algorithm(pcfg, algo_index):
 			cumulative_probability += probability
 			nb_programs += 1
 			row = search_time, probability, cumulative_probability
+			# row = search_time, probability, log10(1 - cumulative_probability)
 			result.append(row)
 
 		# if nb_programs % 10_000 == 0:
@@ -97,51 +99,83 @@ def run_algorithm(pcfg, algo_index):
 
 	return result
 
-timeout = .5
-compute_from_scratch = True
 
-for algo_index in range(len(list_algorithms)):
-	algorithm, name_algo, param = list_algorithms[algo_index]
+def plot():
+	for algo_index in range(len(list_algorithms)):
+		algorithm, name_algo, param = list_algorithms[algo_index]
+		interval = np.linspace(start = 0, stop = timeout, num = number_points)
 
-	if compute_from_scratch:
-		logging.info('start run: {}'.format(name_algo))
+		if compute_from_scratch:
+			logging.info('start run: {}'.format(name_algo))
 
-		result = []
-		if algorithm in randomised:
-			for i in range(3):
-				result = result + run_algorithm(pcfg = deepcoder_PCFG, algo_index = algo_index)
-			result = sorted(result, key=lambda x: x[2])
+			if algorithm in randomised:
+				r = np.zeros((number_samples, number_points))
+				for i in range(number_samples):
+					res = run_algorithm(pcfg = deepcoder_PCFG, algo_index = algo_index)
+					r[i] = np.interp(interval, [x[0] for x in res], [x[2] for x in res])			
+				logging.info('finished run')
+				result_mean = np.mean(r, axis=0)
+				result_std = np.std(r, axis=0) 
+				result = np.column_stack((interval, result_mean,result_std))
+
+				with open('results_syntactic/{}_{}.csv'.format(name_algo, timeout), 'w', encoding='UTF8', newline='') as f:
+					writer = csv.writer(f)
+					header = ['search time', 'mean cumulative probability', 'standard deviation']
+					writer.writerow(header)
+					writer.writerows(result)
+
+			else:
+				res = run_algorithm(pcfg = deepcoder_PCFG, algo_index = algo_index)
+				logging.info('finished run')
+				result = [(x[0], x[2]) for x in res]
+				with open('results_syntactic/{}_{}.csv'.format(name_algo, timeout), 'w', encoding='UTF8', newline='') as f:
+					writer = csv.writer(f)
+					header = ['search time', 'cumulative probability']
+					writer.writerow(header)
+					writer.writerows(result)
+
 		else:
-			result = run_algorithm(pcfg = deepcoder_PCFG, algo_index = algo_index)
+			logging.info('retrieve run: {}'.format(name_algo))
+			with open('results_syntactic/{}_{}.csv'.format(name_algo, timeout), 'r', encoding='UTF8', newline='') as f:
+				reader = csv.reader(f)
+				if algorithm in randomised:
+					result_mean = np.zeros(number_points)
+					result_std = np.zeros(number_points)
+					for i, row in enumerate(reader):
+						if i > 0:
+							result_mean[i-1] = row[1]
+							result_std[i-1] = row[2]
+				else:
+					result = []
+					for row in reader:
+						result.append(row)
+			logging.info('retrieved')
 
-		logging.info('finished run')
+		if algorithm in randomised:
+			result_top = result_mean + 2 * result_std
+			result_low = np.positive(result_mean - 2 * result_std)
+			plt.fill_between(interval, result_top, result_low, facecolor='orange', alpha=0.2)
+			plt.scatter(interval,result_mean,label = name_algo, s = 5)
+		else:
+			x = [x[0] for x in result]
+			y = [x[1] for x in result]
+			plt.scatter(x,y,label = name_algo, s = 5)
 
-		with open('results_syntactic/{}_{}.csv'.format(name_algo, timeout), 'w', encoding='UTF8', newline='') as f:
-			writer = csv.writer(f)
-			header = ['search time', 'probability of the program', 'cumulative probability']
-			writer.writerow(header)
-			writer.writerows(result)
+	plt.legend()
+	plt.xlabel("time (in seconds)")
+	plt.ylabel("cumulative probability")
+	# plt.ylabel("log(1 - cumulative probability)")
+	plt.title("")
+	plt.xscale('log')
+	# plt.yscale('log')
+	#plt.show()
+	plt.savefig("results_syntactic/cumulative_time_%s.png" % seed, 
+		dpi=500, 
+		bbox_inches='tight')
+	plt.clf()
 
-	else:
-		with open('results_syntactic/{}_{}.csv'.format(name_algo, timeout), 'r', encoding='UTF8', newline='') as f:
-			reader = csv.reader(f)
-			result = []
-			for row in reader:
-				result.append(row)
-
-	x = [search_time for search_time, probability, cumulative_probability in result]
-	y = [cumulative_probability for search_time, probability, cumulative_probability in result]
-	plt.scatter(x,y,label = name_algo, s = 5)
-
-#plt.xlim((0,threshold_probability))
-plt.legend()
-plt.xlabel("time (in seconds)")
-plt.ylabel("cumulative probability")
-plt.title("")
-plt.xscale('log')
-# plt.yscale('log')
-#plt.show()
-plt.savefig("results_syntactic/cumulative_time_%s.png" % seed, 
-	dpi=500, 
-	bbox_inches='tight')
-plt.clf()
+timeout = 5
+compute_from_scratch = True
+number_points = 100_000
+number_samples = 10
+plot()
