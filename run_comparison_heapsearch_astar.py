@@ -123,11 +123,12 @@ def plot():
 	
 		result_top = result_mean + 2 * result_std
 		result_low = np.positive(result_mean - 2 * result_std)
-		plt.fill_between(timepoints, result_top, result_low, facecolor='orange', alpha=0.2)
-		plt.scatter(timepoints, result_mean, label = name_algo, s = 5)
+		sc = plt.scatter(timepoints, result_mean, label = name_algo, s = 5)
+		color = sc.get_facecolors()[0].tolist()
+		plt.fill_between(timepoints, result_top, result_low, facecolor = color, alpha=0.2)
 
-	plt.legend()
-	plt.xlim((1e-2,timeout))
+	plt.legend(loc = 'top left')
+	plt.xlim((1e-1,timeout))
 	plt.ticklabel_format(axis='y', style='sci', scilimits=(3,5))
 	plt.xlabel('time (in seconds)')
 	plt.ylabel('number of programs')

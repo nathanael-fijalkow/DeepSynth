@@ -36,14 +36,14 @@ deepcoder_CFG = deepcoder.DSL_to_CFG(type_request, max_program_depth = 4)
 deepcoder_PCFG = deepcoder_CFG.CFG_to_Random_PCFG()
 
 list_algorithms = [
-	(heap_search, 'Heap Search', {}),
-	(sqrt_sampling, 'SQRT', {}),
-	# (sqrt_sampling_with_sbsur, 'SQRT+SBS', {}),
-	(a_star, 'A*', {}),
-	(threshold_search, 'Threshold', {'initial_threshold' : 0.0001, 'scale_factor' : 10}),
-	(bfs, 'BFS', {'beam_width' : 500_000}),
+	(bfs, 'BFS', {'beam_width' : 5e5}),
 	(dfs, 'DFS', {}),
 	(sort_and_add, 'Sort&Add', {}),
+	# (sqrt_sampling_with_sbsur, 'SQRT+SBS', {}),
+	(threshold_search, 'Threshold', {'initial_threshold' : 1e-4, 'scale_factor' : 5e3}),
+	(sqrt_sampling, 'SQRT', {}),
+	(heap_search, 'Heap Search', {}),
+	(a_star, 'A*', {}),
 ]
 # Set of algorithms where we need to reconstruct the programs
 reconstruct = {dfs, bfs, threshold_search, a_star,
@@ -184,9 +184,11 @@ def plot_cumulative_probability_vs_time():
 	
 		if algorithm in randomised:
 			result_top = result_mean + 2 * result_std
-			result_low = np.positive(result_mean - 2 * result_std)
-			plt.fill_between(timepoints, result_top, result_low, facecolor='orange', alpha=0.2)
-			plt.scatter(timepoints,result_mean,label = name_algo, s = 5)
+			result_low = result_mean - 2 * result_std
+			plt.fill_between(timepoints, result_top, result_low, alpha=0.2)
+			sc = plt.scatter(timepoints,result_mean,label = name_algo, s = 5)
+			color = sc.get_facecolors()[0].tolist()
+			plt.fill_between(timepoints, result_top, result_low, facecolor = color, alpha=0.2)
 		else:
 			x = [float(search_time) for search_time, _, _ in result]
 			y = [float(cumulative_probability) for _, _, cumulative_probability in result]
@@ -211,6 +213,10 @@ def plot_cumulative_probability_vs_number_programs():
 	logging.info('Plot cumulative probability VS number of programs')
 	for algo_index in range(len(list_algorithms)):
 		algorithm, name_algo, param = list_algorithms[algo_index]
+		# heap search and A* are the same here
+		if name_algo == 'A*':
+			continue
+
 		countpoints = np.linspace(start = 0, stop = max_number_programs, num = number_countpoints)
 
 		logging.info('retrieve run: {}'.format(name_algo))
@@ -238,18 +244,22 @@ def plot_cumulative_probability_vs_number_programs():
 	
 		if algorithm in randomised:
 			result_top = result_mean + 2 * result_std
-			result_low = np.positive(result_mean - 2 * result_std)
-			plt.fill_between(countpoints, result_top, result_low, facecolor='orange', alpha=0.2)
-			plt.scatter(countpoints,result_mean,label = name_algo, s = 5)
+			result_low = result_mean - 2 * result_std
+			print(result_top[:10])
+			print(result_low[:10])
+			sc = plt.scatter(countpoints,result_mean,label = name_algo, s = 5)
+			color = sc.get_facecolors()[0].tolist()
+			plt.fill_between(countpoints, result_top, result_low, facecolor = color, alpha=0.2)
 		else:
 			x = np.arange(len(result))
 			y = [float(cumulative_probability) for _, _, cumulative_probability in result]
 			plt.scatter(x,y,label = name_algo, s = 5)
 
-	plt.legend()
 	plt.ticklabel_format(axis='x', style='sci', scilimits=(3,5))
 	plt.xlabel('number of programs')
+	plt.xlim((0,max_number_programs))
 	plt.ylabel('cumulative probability')
+	plt.legend(loc = 'lower right')
 
 	plt.savefig("results_syntactic/cumulative_probability_vs_number_programs_%s.png" % seed, 
 		dpi=500, 
@@ -261,9 +271,9 @@ number_samples = 5
 number_timepoints = 100_000
 timeout = 10
 
-number_countpoints = 100
-max_number_programs = 200_000
+number_countpoints = 10_000
+max_number_programs = 2e5
 
-create_dataset()
+# create_dataset()
 plot_cumulative_probability_vs_time()
 plot_cumulative_probability_vs_number_programs()
