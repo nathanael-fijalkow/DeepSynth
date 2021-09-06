@@ -8,10 +8,6 @@ def bfs(G : PCFG, beam_width = 50_000):
     '''
     A generator that enumerates all programs using a BFS.
     '''
-    # We reverse the rules: they should be non-decreasing
-    for S in G.rules:
-        sorted(G.rules[S], key=lambda x: G.rules[S][x][1])
-
     frontier = []
     initial_non_terminals = deque()
     initial_non_terminals.append(G.start)

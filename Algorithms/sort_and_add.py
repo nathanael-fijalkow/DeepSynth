@@ -16,7 +16,7 @@ def sort_and_add(G : PCFG, init = 5, step = 5):
         G.list_derivations = {}
         for S in G.rules:
             G.list_derivations[S] = sorted(
-                G.rules[S], key=lambda P: G.rules[S][P][1]
+                G.rules[S], key=lambda P: -G.rules[S][P][1]
             )
     G_truncated = truncate(G, size)
     gen = dfs(G_truncated)

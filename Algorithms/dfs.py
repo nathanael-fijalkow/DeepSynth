@@ -6,8 +6,21 @@ import time
 def dfs(G : PCFG):
     '''
     A generator that enumerates all programs using a DFS.
-    Assumes that the rules are non-increasing
     '''
+
+    # We need to reverse the rules:
+    new_rules = {}
+    for S in G.rules:
+        new_rules[S] = {}
+        sorted_derivation_list = sorted(
+            G.rules[S], key=lambda P: G.rules[S][P][1]
+        )
+        for P in sorted_derivation_list:
+            new_rules[S][P] = G.rules[S][P]
+    G = PCFG(start = G.start, 
+        rules = new_rules, 
+        max_program_depth = G.max_program_depth)
+
     frontier = deque()
     initial_non_terminals = deque()
     initial_non_terminals.append(G.start)

@@ -113,7 +113,8 @@ class CFG:
                 augmented_rules[S][P] = (self.rules[S][P], 1 / p)
         return PCFG(start = self.start, 
             rules = augmented_rules, 
-            max_program_depth = self.max_program_depth)
+            max_program_depth = self.max_program_depth,
+            clean = True)
 
     def CFG_to_Random_PCFG(self,alpha=0.7):
         new_rules = {}
@@ -130,6 +131,7 @@ class CFG:
             new_rules[S] = {}
             for i, P in enumerate(self.rules[S]):
                 new_rules[S][P] = (self.rules[S][P], weights[random_permutation[i]])
-        return PCFG(start=self.start, 
-            rules=new_rules, 
-            max_program_depth=self.max_program_depth)
+        return PCFG(start = self.start, 
+            rules = new_rules, 
+            max_program_depth = self.max_program_depth,
+            clean = True)

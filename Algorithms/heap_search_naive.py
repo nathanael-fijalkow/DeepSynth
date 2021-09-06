@@ -35,6 +35,10 @@ class heap_search_object_naive:
         self.hash_table_program = {S: set() for S in self.symbols}
 
         # Initialisation heaps
+
+        ## 0. compute max probability
+        self.G.compute_max_probability()
+
         ## 1. add P(max(S1),max(S2), ...) to self.heaps[S] for all S -> P(S1, S2, ...)
         for S in reversed(self.rules):
             for P in self.rules[S]:

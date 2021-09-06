@@ -47,6 +47,7 @@ class PCFG:
             self.remove_non_productive()
             self.remove_non_reachable()
             self.normalise()
+            self.sort()
 
     def __hash__(self):
         return self.hash
@@ -72,6 +73,16 @@ class PCFG:
             self.vose_samplers[S] = vose.Sampler(
                 np.array([self.rules[S][P][1] for P in self.list_derivations[S]],dtype=float)
             )
+
+    def sort(self):
+        for S in self.rules:
+            sorted_derivation_list = sorted(
+                self.rules[S], key=lambda P: -self.rules[S][P][1]
+            )
+            new_rules = {}
+            for P in sorted_derivation_list:
+                new_rules[P] = self.rules[S][P]
+            self.rules[S] = new_rules
 
     def normalise(self):
         for S in self.rules:
