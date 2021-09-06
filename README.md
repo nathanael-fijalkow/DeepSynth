@@ -63,17 +63,16 @@ python unit_test_parallel.py
 
 ### Reproducing the experiments
 
-All of the files mentioned in this section are located in the root folder and ends with ```experiments```.
+All of the files mentioned in this section are located in the root folder and follow this pattern ```run_*_experiments*.py```.
 
 Here is a short summary of each experiment:
 
-- ```syntactic_experiments.py``` produce a list of all programs geneerated under 2sec of search time by all algorithms.
-- ```semantic_experiments.py``` try to find solutions using an ANN to predict the grammar and for each algorithm logs the search data for the ```list_datatset```.
-- ```semantic_experiments_parallel.py``` same experiment but algorithms are run in parallel.
+- ```run_syntactic_experiments.py``` produce a list of all programs generated under Xsec of search time by all algorithms.
+- ```run_semantic_experiments_<dataset>.py``` try to find solutions using an ANN to predict the grammar and for each algorithm logs the search data for the  corresponding ```<dataset>```. The suffix parallel can also be found indicating that the algorithms are run in parallel. The semantics experiments in the paper used a trained model.
 
 ### Quick guide to using ANN to predict a grammar
 
-Is it heavily inspired by the file ```semantics_experiments.py```.
+Is it heavily inspired by the file ```run_semantics_experiments.py```.
 
 First we create a prediction model:
 
@@ -140,12 +139,12 @@ IOEncoder = FixedSizeEncoding(
 ######### EMBEDDING ########
 ############################
 
-IOEmbedder = SimpleEmbedding(
-    IOEncoder=IOEncoder,
-    output_dimension=embedding_output_dimension,
-    size_hidden=size_hidden,
-)
-
+# IOEmbedder = SimpleEmbedding(
+#     IOEncoder=IOEncoder,
+#     output_dimension=embedding_output_dimension,
+#     size_hidden=size_hidden,
+# )
+ 
 IOEmbedder = RNNEmbedding(
     IOEncoder=IOEncoder,
     output_dimension=embedding_output_dimension,
@@ -188,6 +187,13 @@ batched_grammars = model(batched_examples)
 if isinstance(model, GlobalRulesPredictor):
     batched_grammars = model.reconstruct_grammars(batched_grammars)
 ```
+
+### Quick guide to train a neural network
+
+Just copy the model initialisation used in your experiment in the file ```produce_network.py```, then run the script.
+A ```.weights``` file should appear at the root.
+This will train a neural network on random generated programs.
+
 
 ### Quick guide to using a search algorithm for a grammar
 
