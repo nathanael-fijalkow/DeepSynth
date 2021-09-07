@@ -59,7 +59,7 @@ list_algorithms = [
     # (sort_and_add, 'Sort&Add', {}),
     # (sqrt_sampling_with_sbsur, 'SQRT+SBS', {}),
     # (threshold_search, 'Threshold', {'initial_threshold' : 1e-4, 'scale_factor' : 5e3}),
-    # (sqrt_sampling, 'SQRT', {}),
+    (sqrt_sampling, 'SQRT', {}),
     (heap_search, 'Heap Search', {}),
     # (a_star, 'A*', {}),
 ]
@@ -116,26 +116,25 @@ def run_algorithm_parallel(pcfg: PCFG, algo_index: int, splits: int,
         def __init__(self, n):
             self.search_times = [0] * n
             self.times = []
-            self.probabilities = []
-            self.total_time = 0
             self.programs = 0
             self.prob = 0
 
         def add_search_data(self, i, t, probability) -> bool:
             self.search_times[i] += t
-            mini = min(self.search_times)
+            mini = np.mean(self.search_times)
             self.times.append(mini)
-            self.prob += probability
-            self.programs += 1
+            if probability > 0:
+                self.programs += 1
             # self.probabilities.append(self.prob)
-            if mini > timeout or self.programs > max_number_programs:
+            if self.search_times[i] > timeout or self.programs > max_number_programs:
                 # print("Should stop because: time=", self.total_time,
                 #       "programs=", self.programs, "prob=", self.prob)
                 return True
             return False
 
         def search_data(self):
-            return self.times, self.probabilities
+            print("Times=", self.search_times)
+            return self.times
 
     data_collector = DataCollectorActor.remote(splits)
 
@@ -143,21 +142,16 @@ def run_algorithm_parallel(pcfg: PCFG, algo_index: int, splits: int,
         if algorithm in reconstruct:
             def new_gen():
                 gen = algorithm(cur_pcfg, **param)
-                target_type = pcfg.start[0]
                 p = next(gen)
-                probability = pcfg.probability_program(
-                    pcfg.start, reconstruct_from_compressed(
-                        p, target_type))
-                data_collector.add_search_data.remote(i, 0, probability)
+                data_collector.add_search_data.remote(i, 0, 1)
                 try:
                     while True:
                         t = -time.perf_counter()
                         p = next(gen)
                         prog = insert_prefix(prefix, p)
                         t += time.perf_counter()
-                        prog_r = reconstruct_from_compressed(prog, target_type)
                         # probability = pcfg.probability_program(pcfg.start, prog_r)
-                        if ray.get(data_collector.add_search_data.remote(i, t, 0)):
+                        if ray.get(data_collector.add_search_data.remote(i, t, 1)):
                             break
                         # yield prog
                 except StopIteration:
@@ -168,16 +162,15 @@ def run_algorithm_parallel(pcfg: PCFG, algo_index: int, splits: int,
                 gen = algorithm(cur_pcfg)
                 target_type = pcfg.start[0]
                 p = next(gen)
-                probability = pcfg.probability_program(pcfg.start, p if prefix is None else insert_prefix_toprog(
-                    prefix, p, target_type))
-                data_collector.add_search_data.remote(i, 0, probability)
+                data_collector.add_search_data.remote(i, 0, 1)
                 try:
                     while True:
                         t = -time.perf_counter()
                         p = next(gen)
                         if p is None:
                             t += time.perf_counter()
-                            data_collector.add_search_data.remote(i, t, 0)
+                            if ray.get(data_collector.add_search_data.remote(i, t, 0)):
+                                break
                             continue
                         if prefix is None:
                             prog = p
@@ -189,7 +182,7 @@ def run_algorithm_parallel(pcfg: PCFG, algo_index: int, splits: int,
                         # probability = pcfg.probability_program(
                         #     pcfg.start, prog)
 
-                        if ray.get(data_collector.add_search_data.remote(i, t, 0)):
+                        if ray.get(data_collector.add_search_data.remote(i, t, 1)):
                             break
                         # yield prog
                 except StopIteration:
@@ -218,12 +211,12 @@ def run_algorithm_parallel(pcfg: PCFG, algo_index: int, splits: int,
             out.get(timeout=5)
         except Empty:
             pass
-        times, _ = ray.get(data_collector.search_data.remote())
+        times = ray.get(data_collector.search_data.remote())
         print("Current state: time used:", times[-1], "programs:", len(times))
         if times[-1] > timeout or len(times) > max_number_programs:
             break
 
-    search_times, cumulative_probabilities = ray.get(
+    search_times = ray.get(
         data_collector.search_data.remote())
 
     # Shutdown
@@ -250,7 +243,7 @@ def create_dataset():
     number_algorithms = len(list_algorithms)
 
     timepoints = np.logspace(
-        start=-3, stop=log10(timeout), num=number_timepoints)
+        start=-2, stop=log10(timeout), num=number_timepoints)
     r_program = np.zeros(
         (number_samples, len(split_numbers) * number_algorithms, number_countpoints))
     for i in range(number_samples):
@@ -302,7 +295,7 @@ def plot_programs_vs_time():
             algorithm, name_algo, param = list_algorithms[algo_index]
             # timepoints = np.arange(start = 0, stop = number_timepoints)
             timepoints = np.logspace(
-                start=-3, stop=log10(timeout), num=number_timepoints)
+                start=-2, stop=log10(timeout), num=number_timepoints)
 
             logging.info('retrieve run: {} {}'.format(name_algo, splits))
 
@@ -330,6 +323,7 @@ def plot_programs_vs_time():
     plt.xlim((1e-3, timeout))
     plt.xlabel('time (in seconds)')
     plt.xscale('log')
+    plt.yscale('log')
     # plt.ylim((0, max_number_programs))
     plt.ylabel('number of programs')
 
@@ -345,7 +339,7 @@ number_timepoints = 1_000
 timeout = 1
 
 number_countpoints = 1_000
-max_number_programs = 2e6
+max_number_programs = 1e7
 ray.init()
 create_dataset()
 plot_programs_vs_time()
