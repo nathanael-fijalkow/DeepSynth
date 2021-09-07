@@ -133,7 +133,6 @@ def run_algorithm_parallel(pcfg: PCFG, algo_index: int, splits: int,
             return False
 
         def search_data(self):
-            print("Times=", self.search_times)
             return self.times
 
     data_collector = DataCollectorActor.remote(splits)
