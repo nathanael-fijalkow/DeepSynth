@@ -133,8 +133,8 @@ def plot():
 	plt.xlabel('time (in seconds)')
 	plt.ylabel('number of programs')
 	plt.xscale('log')
-
-	plt.savefig("results_syntactic/comparison_heapsearch_astar%s.png" % seed, 
+	plt.yscale('log')
+	plt.savefig("results_syntactic/comparison_heapsearch_astar_%s.png" % (seed), 
 		dpi=500, 
 		bbox_inches='tight')
 	plt.clf()

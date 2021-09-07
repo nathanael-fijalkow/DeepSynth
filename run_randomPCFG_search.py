@@ -35,6 +35,12 @@ type_request = Arrow(List(INT),List(INT))
 deepcoder_CFG = deepcoder.DSL_to_CFG(type_request, max_program_depth = 4)
 deepcoder_PCFG = deepcoder_CFG.CFG_to_Random_PCFG()
 
+# these colors come from a graphical design webpage
+# but I think that they actually look worse
+# they are disabled here
+six_colors = [None]*6#["#003f5c","#444e86","#955196","#dd5182","#ff6e54","#ffa600"]
+seven_colors = [None]*7#["#003f5c","#374c80","#7a5195","#bc5090","#ef5675","#ff764a","#ffa600"]
+
 list_algorithms = [
 	(bfs, 'BFS', {'beam_width' : 5e5}),
 	(dfs, 'DFS', {}),
@@ -153,7 +159,7 @@ def create_dataset():
 				writer.writerows(result)
 
 # Plot cumulative probability VS time
-def plot_cumulative_probability_vs_time():
+def plot_cumulative_probability_vs_time(remaining):
 	logging.info('Plot cumulative probability VS time')
 	for algo_index in range(len(list_algorithms)):
 		algorithm, name_algo, param = list_algorithms[algo_index]
@@ -183,25 +189,30 @@ def plot_cumulative_probability_vs_time():
 		logging.info('retrieved')
 	
 		if algorithm in randomised:
+			if remaining: result_mean = 1 - result_mean
 			result_top = result_mean + 2 * result_std
 			result_low = result_mean - 2 * result_std
 			plt.fill_between(timepoints, result_top, result_low, alpha=0.2)
-			sc = plt.scatter(timepoints,result_mean,label = name_algo, s = 5)
+			sc = plt.scatter(timepoints,result_mean,label = name_algo, s = 5,
+                                         c=seven_colors[algo_index])
 			color = sc.get_facecolors()[0].tolist()
 			plt.fill_between(timepoints, result_top, result_low, facecolor = color, alpha=0.2)
 		else:
 			x = [float(search_time) for search_time, _, _ in result]
 			y = [float(cumulative_probability) for _, _, cumulative_probability in result]
-			plt.scatter(x,y,label = name_algo, s = 5)
+			if remaining: y = [1-_y for _y in y]
+			plt.scatter(x,y,label = name_algo, s = 5,
+                                    c=seven_colors[algo_index])
 
 	plt.legend()
 	plt.xlim((1e-4,timeout))
 	plt.xlabel('time (in seconds)')
-	plt.ylabel('cumulative probability')
+	if remaining:  plt.ylabel('unsampled probability mass')
+	else: plt.ylabel('cumulative probability')
 	plt.xscale('log')
-	# plt.yscale('log')
+	if remaining: plt.yscale('log')
 
-	plt.savefig("results_syntactic/cumulative_probability_vs_time_%s.png" % seed, 
+	plt.savefig("results_syntactic/cumulative_probability_vs_time_remaining=%s_%s.png" % (remaining, seed), 
 		dpi=500, 
 		bbox_inches='tight')
 	plt.clf()
@@ -209,7 +220,7 @@ def plot_cumulative_probability_vs_time():
 
 
 # Plot cumulative probability VS number of programs
-def plot_cumulative_probability_vs_number_programs():
+def plot_cumulative_probability_vs_number_programs(remaining):
 	logging.info('Plot cumulative probability VS number of programs')
 	for algo_index in range(len(list_algorithms)):
 		algorithm, name_algo, param = list_algorithms[algo_index]
@@ -243,25 +254,30 @@ def plot_cumulative_probability_vs_number_programs():
 		logging.info('retrieved')
 	
 		if algorithm in randomised:
+			if remaining: result_mean = 1 - result_mean
 			result_top = result_mean + 2 * result_std
 			result_low = result_mean - 2 * result_std
 			print(result_top[:10])
 			print(result_low[:10])
-			sc = plt.scatter(countpoints,result_mean,label = name_algo, s = 5)
+			sc = plt.scatter(countpoints,result_mean,label = name_algo, s = 5,
+                                         color=six_colors[algo_index])
 			color = sc.get_facecolors()[0].tolist()
 			plt.fill_between(countpoints, result_top, result_low, facecolor = color, alpha=0.2)
 		else:
 			x = np.arange(len(result))
 			y = [float(cumulative_probability) for _, _, cumulative_probability in result]
-			plt.scatter(x,y,label = name_algo, s = 5)
+			if remaining: y = [1-_y for _y in y]
+			plt.scatter(x,y,label = name_algo, s = 5,
+                                         color=six_colors[algo_index])
 
 	plt.ticklabel_format(axis='x', style='sci', scilimits=(3,5))
 	plt.xlabel('number of programs')
 	plt.xlim((0,max_number_programs))
-	plt.ylabel('cumulative probability')
-	plt.legend(loc = 'lower right')
-
-	plt.savefig("results_syntactic/cumulative_probability_vs_number_programs_%s.png" % seed, 
+	if remaining:  plt.ylabel('unsampled probability mass')
+	else: plt.ylabel('cumulative probability')
+	if remaining: plt.legend(loc = 'upper right')
+	else: plt.legend(loc = 'lower right')
+	plt.savefig("results_syntactic/cumulative_probability_vs_number_programs_remaining=%s_%s.png" % (remaining, seed), 
 		dpi=500, 
 		bbox_inches='tight')
 	plt.clf()
@@ -274,6 +290,8 @@ timeout = 10
 number_countpoints = 10_000
 max_number_programs = 2e5
 
-# create_dataset()
-plot_cumulative_probability_vs_time()
-plot_cumulative_probability_vs_number_programs()
+create_dataset()
+plot_cumulative_probability_vs_time(False)
+plot_cumulative_probability_vs_number_programs(False)
+plot_cumulative_probability_vs_time(True)
+plot_cumulative_probability_vs_number_programs(True)
