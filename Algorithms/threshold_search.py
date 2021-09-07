@@ -35,7 +35,7 @@ def bounded_threshold(G : PCFG, threshold):
                         new_non_terminals.append(arg)
                     frontier.append((new_partial_program, new_non_terminals, new_probability))
 
-def threshold_search(G: PCFG, initial_threshold = 0.0001, scale_factor = 100):        
+def threshold_search(G: PCFG, initial_threshold = 1e-4, scale_factor = 5e2):        
     threshold = initial_threshold
     # print("Initialising threshold to {}".format(threshold))
     gen = bounded_threshold(G, threshold)

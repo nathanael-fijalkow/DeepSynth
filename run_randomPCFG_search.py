@@ -145,7 +145,7 @@ def create_dataset():
 	result_program_mean = np.mean(r_program, axis=0)
 	result_program_std = np.std(r_program, axis=0) 
 
-	for j, algo_index in enumerate(range(number_algorithms)):
+	for algo_index in range(number_algorithms):
 		algorithm, name_algo, param = list_algorithms[algo_index]
 
 		with open('results_syntactic/cumulative_probability_vs_time_{}_{}.csv'.format(name_algo, timeout), 'w', encoding='UTF8', newline='') as f:
@@ -153,14 +153,14 @@ def create_dataset():
 			header = ['search time', 'mean cumulative probability', 'standard deviation']
 			writer.writerow(header)
 			for x,t in enumerate(timepoints):
-				writer.writerow((t, result_time_mean[j][x], result_time_std[j][x]))
+				writer.writerow((t, result_time_mean[algo_index][x], result_time_std[algo_index][x]))
 
 		with open('results_syntactic/cumulative_probability_vs_number_programs_{}_{}.csv'.format(name_algo, timeout), 'w', encoding='UTF8', newline='') as f:
 			writer = csv.writer(f)
 			header = ['number of programs', 'mean cumulative probability', 'standard deviation']
 			writer.writerow(header)
 			for x in range(number_countpoints):
-				writer.writerow((x, result_program_mean[j][x], result_program_std[j][x]))
+				writer.writerow((x, result_program_mean[algo_index][x], result_program_std[algo_index][x]))
 
 # Plot cumulative probability VS time
 def plot_cumulative_probability_vs_time():
