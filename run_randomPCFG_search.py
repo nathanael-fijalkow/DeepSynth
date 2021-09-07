@@ -30,10 +30,17 @@ logging.basicConfig(format='%(message)s', level=logging_levels[verbosity])
 
 seed = 100
 random.seed(seed)
+np.random.seed(seed)
 deepcoder = DSL(semantics, primitive_types)
 type_request = Arrow(List(INT),List(INT))
 deepcoder_CFG = deepcoder.DSL_to_CFG(type_request, max_program_depth = 4)
 deepcoder_PCFG = deepcoder_CFG.CFG_to_Random_PCFG()
+
+# these colors come from a graphical design webpage
+# but I think that they actually look worse
+# they are disabled here
+six_colors = [None]*6#["#003f5c","#444e86","#955196","#dd5182","#ff6e54","#ffa600"]
+seven_colors = [None]*7#["#003f5c","#374c80","#7a5195","#bc5090","#ef5675","#ff764a","#ffa600"]
 
 list_algorithms = [
 	(bfs, 'BFS', {'beam_width' : 5e5}),
@@ -190,11 +197,10 @@ def plot_cumulative_probability_vs_time():
 	plt.ylim((0,1))
 	plt.ylabel('cumulative probability')
 
-	plt.savefig("results_syntactic/cumulative_probability_vs_time_%s.png" % seed, 
+	plt.savefig("results_syntactic/cumulative_probability_vs_time_%s.png" % seed,
 		dpi=500, 
 		bbox_inches='tight')
 	plt.clf()
-
 
 
 # Plot cumulative probability VS number of programs
@@ -224,8 +230,6 @@ def plot_cumulative_probability_vs_number_programs():
 	
 		result_top = result_mean + .5 * result_std
 		result_low = result_mean - .5 * result_std
-		# print(result_top[500:510])
-		# print(result_low[500:510])
 		sc = plt.scatter(countpoints,result_mean,label = name_algo, s = 5)
 		color = sc.get_facecolors()[0].tolist()
 		plt.fill_between(countpoints, result_top, result_low, facecolor = color, alpha=0.2)

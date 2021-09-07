@@ -81,7 +81,7 @@ def create_dataset():
 	number_algorithms = len(list_algorithms)
 
 	deepcoder_PCFG = deepcoder_CFG.CFG_to_Random_PCFG()
-	timepoints = np.linspace(start = 0, stop = timeout, num = number_timepoints)
+	timepoints = np.logspace(start = -3, stop = log10(timeout), num = number_timepoints)
 
 	r_program = np.zeros((number_samples, number_algorithms, number_timepoints))
 	for i in range(number_samples):
@@ -99,13 +99,13 @@ def create_dataset():
 
 	result_mean = np.mean(r_program, axis=0)
 	result_std = np.std(r_program, axis=0) 
-	result = np.column_stack((timepoints, result_mean, result_std))
 
 	with open('results_syntactic/run_{}_{}.csv'.format(name_algo, timeout), 'w', encoding='UTF8', newline='') as f:
 		writer = csv.writer(f)
 		header = ['time', 'mean number of programs', 'standard deviation']
 		writer.writerow(header)
-		writer.writerows(result)
+		for x,t in enumerate(timepoints):
+			writer.writerow((t, result_program_mean[j][x], result_program_std[j][x]))
 
 # Plot comparison
 def plot():
@@ -130,7 +130,7 @@ def plot():
 		logging.info('retrieved')
 	
 		result_top = result_mean + result_std
-		result_low = np.positive(result_mean - result_std)
+		result_low = result_mean - result_std
 		sc = plt.scatter(timepoints, result_mean, label = name_algo, s = 5)
 		color = sc.get_facecolors()[0].tolist()
 		plt.fill_between(timepoints, result_top, result_low, facecolor = color, alpha=0.5)
@@ -142,8 +142,7 @@ def plot():
 	plt.ylabel('number of programs')
 	plt.xscale('log')
 	plt.yscale('log')
-
-	plt.savefig("results_syntactic/comparison_heapsearch_astar%s.png" % seed, 
+	plt.savefig("results_syntactic/comparison_heapsearch_astar_%s.png" % (seed), 
 		dpi=500, 
 		bbox_inches='tight')
 	plt.clf()
