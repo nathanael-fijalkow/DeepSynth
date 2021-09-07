@@ -312,7 +312,7 @@ def plot_programs_vs_time():
 
             result_top = result_mean + .5 * result_std
             result_low = result_mean - .5 * result_std
-            name_algo += " " + str(splits)
+            name_algo += f" {splits} CPUs"
             sc = plt.scatter(timepoints, result_mean, label=name_algo, s=5)
             color = sc.get_facecolors()[0].tolist()
             plt.fill_between(timepoints, result_top, result_low,
