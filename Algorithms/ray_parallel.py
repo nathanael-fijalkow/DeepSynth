@@ -11,7 +11,7 @@ import time
 # AttributeError: 'NoneType' object has no attribute 'global_worker'
 # You need to apply this patch: https://github.com/ray-project/ray/pull/16955/commits/faa8d6b200f52d86fa5ace2506739d88a767c03b
 
-@ray.remote
+@ray.remote(num_cpus=1)
 class Producer:
     def __init__(self, create_generator, queue, batch_size=1) -> None:
         self.create_generator = create_generator
