@@ -319,7 +319,7 @@ def plot_programs_vs_time():
                              facecolor=color, alpha=0.2)
 
     plt.legend()
-    plt.xlim((1e-3, timeout))
+    plt.xlim((1e-2, timeout))
     plt.xlabel('time (in seconds)')
     plt.xscale('log')
     plt.yscale('log')
