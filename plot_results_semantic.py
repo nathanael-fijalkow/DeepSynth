@@ -5,15 +5,17 @@ import matplotlib.pyplot as plt
 
 dataset = "dreamcoder"
 model = "fixed+rnn+global"
+folder = "results_semantics"
 
 
 data = {}
 
 # Load data
-for file in glob.glob("*.csv"):
-    if not file.startswith("algo_") or not file.endswith(f"_model_{model}_dataset_{dataset}_results_semantic.csv"):
+for file in glob.glob(f"{folder}/*.csv"):
+    file_name = file.replace(folder + "/", "")
+    if not file_name.startswith("algo_") or not file_name.endswith(f"_model_{model}_dataset_{dataset}_results_semantic.csv"):
         continue
-    algo_name = file[5:file.find("_model")]
+    algo_name = file_name[5:file_name.find("_model")]
     with open(file) as fd:
         reader = csv.reader(fd)
         
