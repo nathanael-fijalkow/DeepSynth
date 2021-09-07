@@ -30,6 +30,7 @@ logging.basicConfig(format='%(message)s', level=logging_levels[verbosity])
 
 seed = 100
 random.seed(seed)
+np.random.seed(seed)
 deepcoder = DSL(semantics, primitive_types)
 type_request = Arrow(List(INT),List(INT))
 deepcoder_CFG = deepcoder.DSL_to_CFG(type_request, max_program_depth = 4)
