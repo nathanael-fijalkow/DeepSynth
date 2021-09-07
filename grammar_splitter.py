@@ -534,6 +534,8 @@ def split(pcfg: PCFG, splits: int, **kwargs):
     Return:
     a list of Tuple[prefix program cons_list, PCFG]
     """
+    if splits == 1:
+        return [(None, pcfg)]
     return [__pcfg_from__(pcfg, group) for group in exchange_split(pcfg, splits, **kwargs)]
 
 if __name__ == "__main__":
