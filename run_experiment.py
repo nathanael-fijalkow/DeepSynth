@@ -1,11 +1,11 @@
-
+from cons_list import cons_list2list
 import typing
 import ray
 from ray.util.queue import Empty
 import tqdm
 from pcfg import PCFG
 import logging
-from program import Program
+from program import BasicPrimitive, Function, New, Program, Variable
 import time
 from typing import Callable, Tuple
 import grammar_splitter
@@ -34,11 +34,11 @@ list_algorithms = [
     (heap_search, 'heap search', {}),
     (sqrt_sampling, 'SQRT', {}),
     (sqrt_sampling_with_sbsur, 'SQRT+SBS UR', {}),
-    (a_star, 'A*', {}),
     (threshold_search, 'threshold', {'initial_threshold' : 0.0001, 'scale_factor' : 10}),
-    (bfs, 'bfs', {'beam_width' : 50000}),
+    (bfs, 'bfs', {'beam_width' : 5e5}),
     (dfs, 'dfs', {}),
     (sort_and_add, 'sort and add', {}),
+    (a_star, 'A*', {}),
     # (heap_search_naive, 'heap search naive', {}),
 ]
 # Set of algorithms where we need to reconstruct the programs
@@ -125,6 +125,30 @@ def insert_prefix(prefix, prog):
     except:
         return prefix
 
+
+def reconstruct_from_list(program_as_list, target_type):
+    if len(program_as_list) == 1:
+        return program_as_list.pop()
+    else:
+        P = program_as_list.pop()
+        if isinstance(P, (New, BasicPrimitive)):
+            list_arguments = P.type.ends_with(target_type)
+            arguments = [None] * len(list_arguments)
+            for i in range(len(list_arguments)):
+                arguments[len(list_arguments) - i - 1] = reconstruct_from_list(
+                    program_as_list, list_arguments[len(
+                        list_arguments) - i - 1]
+                )
+            return Function(P, arguments)
+        if isinstance(P, Variable):
+            return P
+        assert False
+
+
+def insert_prefix_toprog(prefix, prog, target_type):
+    prefix = cons_list2list(prefix)
+    return reconstruct_from_list([prog] + prefix, target_type)
+
 def run_algorithm_parallel(is_correct_program: Callable[[Program], bool], pcfg: PCFG, algo_index: int, splits: int,
                            n_filters: int = 4, transfer_queue_size: int = 500_000, transfer_batch_size: int = 10) -> Tuple[Program, float, typing.List[float], typing.List[float], typing.List[int], typing.List[float], float]:
     '''
@@ -141,18 +165,23 @@ def run_algorithm_parallel(is_correct_program: Callable[[Program], bool], pcfg: 
             self.generated_programs = [0] * n_producers
             self.evaluations_times = [0] * n_filters
             self.evaluated_programs = [0] * n_filters
+            self.programs = 0
 
-        def add_search_data(self, index, t, probability):
+        def add_search_data(self, index, t, probability) -> bool:
             self.search_times[index] += t
             self.probabilities[index] += probability
             self.generated_programs[index] += 1
-            if self.generated_programs[index] % 1000 == 0:
-                logging.info("\t\tGenerated {} programs ({:.1f} %) in {:.2f} s".format(
-                    self.generated_programs[index], self.probabilities[index] * 100, self.search_times[index]))
+            if self.search_times[index] > timeout:
+                return True
+            if self.programs > total_number_programs:
+                return True
+
+            return False
 
         def add_evaluation_data(self, index, t):
             self.evaluations_times[index] += t
             self.evaluated_programs[index] += 1
+            self.programs += 1
 
         def search_data(self):
             return self.search_times, self.probabilities, self.generated_programs
@@ -175,12 +204,37 @@ def run_algorithm_parallel(is_correct_program: Callable[[Program], bool], pcfg: 
                         t += time.perf_counter()
                         prog_r = reconstruct_from_compressed(prog, target_type)
                         probability = pcfg.probability_program(pcfg.start, prog_r)
-                        data_collector.add_search_data.remote(i, t, probability)         
+                        if ray.get(data_collector.add_search_data.remote(i, t, probability)):
+                            break
                         yield prog
                 except StopIteration:
                     return
         else:
-            raise Exception("Unsupported for now")
+            def new_gen():
+                gen = algorithm(cur_pcfg)
+                target_type = pcfg.start[0]
+                try:
+                    while True:
+                        t = -time.perf_counter()
+                        p = next(gen)
+                        if prefix is None:
+                            prog = p
+                            t += time.perf_counter()
+                        else:
+                            prog = insert_prefix_toprog(prefix, p, pcfg.start[0])
+                            t += time.perf_counter()
+
+                        if prog is None:
+                            continue
+                        # print(f"Generated:", prog)
+                        # break
+                        probability = pcfg.probability_program(
+                            pcfg.start, prog)
+                        if ray.get(data_collector.add_search_data.remote(i, t, probability)):
+                            break
+                        yield prog
+                except StopIteration:
+                    return
         return new_gen
     
     grammar_split_time = - time.perf_counter()
@@ -208,7 +262,7 @@ def run_algorithm_parallel(is_correct_program: Callable[[Program], bool], pcfg: 
     found = False
     while not found:
         try:
-            program = out.get(timeout=30)
+            program = out.get(timeout=10)
             found = True
         except Empty:
             pass
