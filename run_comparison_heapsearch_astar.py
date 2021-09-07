@@ -25,6 +25,8 @@ logging.basicConfig(format='%(message)s', level=logging_levels[verbosity])
 
 seed = 100
 random.seed(seed)
+np.random.seed(seed)
+
 deepcoder = DSL(semantics, primitive_types)
 type_request = Arrow(List(INT),List(INT))
 deepcoder_CFG = deepcoder.DSL_to_CFG(type_request, max_program_depth = 4)
@@ -76,28 +78,34 @@ def run_algorithm(pcfg, algo_index):
 
 def create_dataset():
 	logging.info('Create dataset')
-	for algo_index in range(len(list_algorithms)):
-		algorithm, name_algo, param = list_algorithms[algo_index]
-		timepoints = np.linspace(start = 0, stop = timeout, num = number_timepoints)
+	number_algorithms = len(list_algorithms)
 
-		logging.info('start run: {}'.format(name_algo))
-		r_program = np.zeros((number_samples, number_timepoints))
-		for i in range(number_samples):
-			deepcoder_PCFG = deepcoder_CFG.CFG_to_Random_PCFG()
+	deepcoder_PCFG = deepcoder_CFG.CFG_to_Random_PCFG()
+	timepoints = np.linspace(start = 0, stop = timeout, num = number_timepoints)
+
+	r_program = np.zeros((number_samples, number_algorithms, number_timepoints))
+	for i in range(number_samples):
+		for algo_index in range(number_algorithms):
+			algorithm, name_algo, param = list_algorithms[algo_index]
+
+			logging.info('start run number {}: {}'.format(i+1, name_algo))
+
 			res = run_algorithm(pcfg = deepcoder_PCFG, algo_index = algo_index)
-			r_program[i] = np.interp(timepoints, 
+			r_program[i][algo_index] = np.interp(timepoints, 
 				[search_time for search_time, _, _ in res],
 				range(len(res)))
-		logging.info('finished run')
-		result_mean = np.mean(r_program, axis=0)
-		result_std = np.std(r_program, axis=0) 
-		result = np.column_stack((timepoints, result_mean, result_std))
 
-		with open('results_syntactic/run_{}_{}.csv'.format(name_algo, timeout), 'w', encoding='UTF8', newline='') as f:
-			writer = csv.writer(f)
-			header = ['time', 'mean number of programs', 'standard deviation']
-			writer.writerow(header)
-			writer.writerows(result)
+			logging.info('finished run number {}'.format(i+1))
+
+	result_mean = np.mean(r_program, axis=0)
+	result_std = np.std(r_program, axis=0) 
+	result = np.column_stack((timepoints, result_mean, result_std))
+
+	with open('results_syntactic/run_{}_{}.csv'.format(name_algo, timeout), 'w', encoding='UTF8', newline='') as f:
+		writer = csv.writer(f)
+		header = ['time', 'mean number of programs', 'standard deviation']
+		writer.writerow(header)
+		writer.writerows(result)
 
 # Plot comparison
 def plot():
@@ -121,11 +129,11 @@ def plot():
 
 		logging.info('retrieved')
 	
-		result_top = result_mean + 2 * result_std
-		result_low = np.positive(result_mean - 2 * result_std)
+		result_top = result_mean + result_std
+		result_low = np.positive(result_mean - result_std)
 		sc = plt.scatter(timepoints, result_mean, label = name_algo, s = 5)
 		color = sc.get_facecolors()[0].tolist()
-		plt.fill_between(timepoints, result_top, result_low, facecolor = color, alpha=0.2)
+		plt.fill_between(timepoints, result_top, result_low, facecolor = color, alpha=0.5)
 
 	plt.legend(loc = 'upper left')
 	plt.xlim((1e-1,timeout))
@@ -133,6 +141,7 @@ def plot():
 	plt.xlabel('time (in seconds)')
 	plt.ylabel('number of programs')
 	plt.xscale('log')
+	plt.yscale('log')
 
 	plt.savefig("results_syntactic/comparison_heapsearch_astar%s.png" % seed, 
 		dpi=500, 
@@ -143,8 +152,8 @@ timeout = 10
 
 number_samples = 5
 
-number_timepoints = 10_000
-max_number_programs = 1_000_000
+number_timepoints = 1_000
+max_number_programs = 1e6
 
 create_dataset()
 plot()
