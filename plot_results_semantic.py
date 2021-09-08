@@ -60,19 +60,3 @@ plt.ylabel("tasks completed")
 
 plt.legend()
 plt.show()
-
-
-# Plot success wrt time
-programs_max = 0
-for algo, data in processed_data.items():
-    program_data = [x[2] for x in data]
-    programs_max = max(programs_max, max(program_data))
-    plt.plot(program_data, [x[0] for x in data], label=algo)
-
-plt.hlines([total_tasks], xmin=0, xmax=programs_max,
-           label="All tasks", color=f"C{len(processed_data)}", linestyles="dashed")
-plt.xlabel("programs")
-plt.ylabel("tasks completed")
-
-plt.legend()
-plt.show()
