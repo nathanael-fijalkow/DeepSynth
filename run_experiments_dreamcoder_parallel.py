@@ -227,8 +227,8 @@ for algo_index in range(len(list_algorithms)):
     algo_name = list_algorithms[algo_index][1]
     if algo_name != "heap search":
         continue
-    for splits in [4, 10]:
-        filename = f"./algo_{algo_name}_cores_{splits}_model_{MODEL_NAME}_dataset_{datataset_name}_results_semantic.pickle"
+    for splits in [6]:
+        filename = f"./algo_{algo_name} {splits} CPUs_model_{MODEL_NAME}_dataset_{datataset_name}_results_semantic.pickle"
         if os.path.exists(filename):
             continue
         data = gather_data_parallel(dataset, algo_index, splits, n_filters=3)
