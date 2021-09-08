@@ -90,6 +90,7 @@ def run_algorithm(is_correct_program: Callable[[Program], bool], pcfg: PCFG, alg
             probability = pcfg.probability_program(pcfg.start, program_r)
         else:
             probability = pcfg.probability_program(pcfg.start, program)
+            program_r = program
 
         cumulative_probability += probability
         # logging.debug('probability: %s' %
@@ -97,7 +98,7 @@ def run_algorithm(is_correct_program: Callable[[Program], bool], pcfg: PCFG, alg
 
         # Evaluation of the program
         evaluation_time -= time.perf_counter()
-        found = is_correct_program(program)
+        found = is_correct_program(program_r)
         evaluation_time += time.perf_counter()
 
         if nb_programs % 100_000 == 0:
@@ -262,7 +263,7 @@ def run_algorithm_parallel(is_correct_program: Callable[[Program], bool], pcfg: 
     found = False
     while not found:
         try:
-            program = out.get(timeout=10)
+            program = out.get(timeout=2)
             found = True
         except Empty:
             pass
