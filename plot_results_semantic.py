@@ -61,4 +61,7 @@ plt.xlim(0)
 plt.ylim(0)
 
 plt.legend()
+plt.savefig(f"results_semantics/machine_learned_{dataset}.png",
+		dpi=500, 
+		bbox_inches='tight')
 plt.show()
