@@ -206,7 +206,7 @@ def run_algorithm_parallel(is_correct_program: Callable[[Program], bool], pcfg: 
                         probability = pcfg.probability_program(pcfg.start, prog_r)
                         if ray.get(data_collector.add_search_data.remote(i, t, probability)):
                             break
-                        yield prog
+                        yield prog_r
                 except StopIteration:
                     return
         else:
