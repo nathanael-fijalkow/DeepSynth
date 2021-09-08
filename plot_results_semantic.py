@@ -38,7 +38,7 @@ for algo_name, algo_data in data.items():
     cur_succ, curr_time, curr_programs = 0, 0, 0
     for _, prog, search_time, evaluation_time, nb_programs, cumulative_probability, probability in algo_data:
         cur_succ += prog is not None and len(prog) > 0
-        curr_time +=  float(search_time) + float(evaluation_time)
+        curr_time +=  min(100, float(search_time) + float(evaluation_time))
         curr_programs += int(nb_programs)
         new_data.append([cur_succ, curr_time, curr_programs])
     processed_data[algo_name] = new_data
@@ -57,6 +57,8 @@ plt.hlines([total_tasks], xmin=0, xmax=time_max, label="All tasks",
            color=f"C{len(processed_data)}", linestyles="dashed")
 plt.xlabel("time (in seconds)")
 plt.ylabel("tasks completed")
+plt.xlim(0)
+plt.ylim(0)
 
 plt.legend()
 plt.show()
