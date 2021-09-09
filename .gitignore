@@ -1,0 +1,13 @@
+# Python files
+__pycache__
+**/__pycache__
+
+# Produced figures
+*.png
+
+# Produced outputs
+*.csv
+
+# VS Code
+.vscode
+.VSCodeCounter
