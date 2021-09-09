@@ -28,7 +28,7 @@ for algo_index in range(len(list_algorithms)):
     if algo_name != "heap search":
         continue
     for splits in [2]:
-        filename = f"./algo_{algo_name} {splits} CPUs_model_{model_name}_dataset_{datataset_name}_results_semantic.csv"
+        filename = f"{save_folder}/algo_{algo_name} {splits} CPUs_model_{model_name}_dataset_{datataset_name}_results_semantic.csv"
         if os.path.exists(filename):
             continue
         data = gather_data_parallel(dataset, algo_index, splits, n_filters=3)
