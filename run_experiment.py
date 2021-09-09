@@ -33,13 +33,13 @@ total_number_programs = 1_000_000
 use_heap_search_cached_eval = True 
 
 list_algorithms = [
-    (heap_search, 'heap search', {}),
+    (heap_search, 'Heap Search', {}),
     (sqrt_sampling, 'SQRT', {}),
-    (sqrt_sampling_with_sbsur, 'SQRT+SBS UR', {}),
-    (threshold_search, 'threshold', {'initial_threshold' : 0.0001, 'scale_factor' : 10}),
-    (bfs, 'bfs', {'beam_width' : 5e5}),
-    (dfs, 'dfs', {}),
-    (sort_and_add, 'sort and add', {}),
+    # (sqrt_sampling_with_sbsur, 'SQRT+SBS UR', {}),
+    (threshold_search, 'Threshold', {'initial_threshold' : 0.0001, 'scale_factor' : 10}),
+    (sort_and_add, 'Sort & Add', {}),
+    (dfs, 'DFS', {}),
+    (bfs, 'BFS', {'beam_width' : 5e5}),
     (a_star, 'A*', {}),
     # (heap_search_naive, 'heap search naive', {}),
 ]
