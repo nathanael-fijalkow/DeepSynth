@@ -50,7 +50,7 @@ class GlobalRulesPredictor(nn.Module):
         )
         # final layer
         self.final_layer = block(size_hidden, self.output_dimension, nn.Sigmoid())
-        self.optimizer = torch.optim.Adam(self.parameters(), lr=0.1)
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=0.001)
 
     def init_RuleToIndex(self):
         self.output_dimension = 0
@@ -76,9 +76,7 @@ class GlobalRulesPredictor(nn.Module):
         x = self.hidden(x)
         # print("size of x", x.size())
         # x = torch.mean(x, -2)
-        # print("size of x", x.size())
         x = self.final_layer(x)
-        # print("size of x", x.size())
         return x
 
         # res = []
@@ -229,7 +227,7 @@ class LocalBigramsPredictor(nn.Module):
         IOEncoder,
         IOEmbedder,
         ):
-        super(LocalGramsPredictor, self).__init__()
+        super(LocalBigramsPredictor, self).__init__()
 
         self.cfg_dictionary = cfg_dictionary
         self.primitive_types = primitive_types
