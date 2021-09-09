@@ -46,7 +46,7 @@ reconstruct = {dfs, bfs, threshold_search, a_star,
                sort_and_add, sqrt_sampling_with_sbsur}
 
 
-def run_algorithm(is_correct_program: Callable[[Program], bool], pcfg: PCFG, algo_index: int) -> Tuple[Program, float, float, int, float, float]:
+def run_algorithm(is_correct_program: Callable[[Program, bool], bool], pcfg: PCFG, algo_index: int) -> Tuple[Program, float, float, int, float, float]:
     '''
     Run the algorithm until either timeout or 1M programs, and for each program record probability and time of output
     return program, search_time, evaluation_time, nb_programs, cumulative_probability, probability
@@ -60,6 +60,7 @@ def run_algorithm(is_correct_program: Callable[[Program], bool], pcfg: PCFG, alg
         _ = next(gen)
     nb_programs = 0
     cumulative_probability = 0
+    cached_eval = algorithm == heap_search
 
     while (search_time + evaluation_time < timeout and nb_programs < total_number_programs):
 
@@ -98,7 +99,7 @@ def run_algorithm(is_correct_program: Callable[[Program], bool], pcfg: PCFG, alg
 
         # Evaluation of the program
         evaluation_time -= time.perf_counter()
-        found = is_correct_program(program_r)
+        found = is_correct_program(program_r, cached_eval)
         evaluation_time += time.perf_counter()
 
         if nb_programs % 100_000 == 0:
@@ -150,13 +151,14 @@ def insert_prefix_toprog(prefix, prog, target_type):
     prefix = cons_list2list(prefix)
     return reconstruct_from_list([prog] + prefix, target_type)
 
-def run_algorithm_parallel(is_correct_program: Callable[[Program], bool], pcfg: PCFG, algo_index: int, splits: int,
+def run_algorithm_parallel(is_correct_program: Callable[[Program, bool], bool], pcfg: PCFG, algo_index: int, splits: int,
                            n_filters: int = 4, transfer_queue_size: int = 500_000, transfer_batch_size: int = 10) -> Tuple[Program, float, typing.List[float], typing.List[float], typing.List[int], typing.List[float], float]:
     '''
     Run the algorithm until either timeout or 1M programs, and for each program record probability and time of output
     return program, search_time, evaluation_time, nb_programs, cumulative_probability, probability
     '''
     algorithm, _, param = list_algorithms[algo_index]
+    cached_eval = algorithm == heap_search
 
     @ray.remote
     class DataCollectorActor:
@@ -209,11 +211,10 @@ def run_algorithm_parallel(is_correct_program: Callable[[Program], bool], pcfg: 
                             break
                         yield prog_r
                 except StopIteration:
-                    return
+                    pass
         else:
             def new_gen():
-                gen = algorithm(cur_pcfg)
-                target_type = pcfg.start[0]
+                gen = algorithm(cur_pcfg, **param)
                 try:
                     while True:
                         t = -time.perf_counter()
@@ -227,15 +228,13 @@ def run_algorithm_parallel(is_correct_program: Callable[[Program], bool], pcfg: 
 
                         if prog is None:
                             continue
-                        # print(f"Generated:", prog)
-                        # break
                         probability = pcfg.probability_program(
                             pcfg.start, prog)
                         if ray.get(data_collector.add_search_data.remote(i, t, probability)):
                             break
                         yield prog
                 except StopIteration:
-                    return
+                    pass
         return new_gen
     
     grammar_split_time = - time.perf_counter()
@@ -247,7 +246,7 @@ def run_algorithm_parallel(is_correct_program: Callable[[Program], bool], pcfg: 
     def make_filter(i):
         def evaluate(program):
             t = -time.perf_counter()
-            found = is_correct_program(program)
+            found = is_correct_program(program, cached_eval)
             t += time.perf_counter()
             data_collector.add_evaluation_data.remote(i, t)
             return found
@@ -263,7 +262,7 @@ def run_algorithm_parallel(is_correct_program: Callable[[Program], bool], pcfg: 
     found = False
     while not found:
         try:
-            program = out.get(timeout=2)
+            program = out.get(timeout=.5)
             found = True
         except Empty:
             pass
@@ -276,7 +275,7 @@ def run_algorithm_parallel(is_correct_program: Callable[[Program], bool], pcfg: 
         "\tFinished search found={}. Now shutting down...".format(found))
     search_times, cumulative_probabilities, nb_programs = ray.get(data_collector.search_data.remote())
     evaluation_times, evaluated_programs = ray.get(data_collector.evaluation_data.remote())
-    logging.info(
+    logging.debug(
         "\tStats: found={} generated programs={} evaluated programs={} covered={:.1f}%".format(found, sum(nb_programs), sum(evaluated_programs), 100*sum(cumulative_probabilities)))
         
     # Shutdown
@@ -293,7 +292,7 @@ def run_algorithm_parallel(is_correct_program: Callable[[Program], bool], pcfg: 
     transfer_queue.shutdown(True)
     out.shutdown(True)
 
-    logging.info("\tShut down.")
+    logging.debug("\tShut down.")
 
 
     if found:
