@@ -36,22 +36,30 @@ for algo_name, algo_data in data.items():
         total_tasks = len(algo_data)
     new_data = [[0, 0, 0]]
     cur_succ, curr_time, curr_programs = 0, 0, 0
+    additional_data = []
     for _, prog, search_time, evaluation_time, nb_programs, cumulative_probability, probability in algo_data:
         cur_succ += prog is not None and len(prog) > 0
-        curr_time +=  min(100, float(search_time) + float(evaluation_time))
+        capped_search_time = min(100 - float(evaluation_time),float(search_time))
+        time_used = capped_search_time + float(evaluation_time)
+        curr_time += time_used
         curr_programs += int(nb_programs)
+        programs_per_sec = int(nb_programs) / time_used
+        additional_data.append([capped_search_time, float(evaluation_time), programs_per_sec])
         new_data.append([cur_succ, curr_time, curr_programs])
-    processed_data[algo_name] = new_data
+    processed_data[algo_name] = (new_data, additional_data)
 
 
 plt.style.use('seaborn-colorblind')
+print(f"Algorithm       Prog/s")
 
 # Plot success wrt time
 time_max = 0
-for algo, data in processed_data.items():
-    time_data = [x[1] for x in data]
+for algo, (new_data, processed_data) in processed_data.items():
+    time_data = [x[1] for x in new_data]
     time_max = max(time_max, max(time_data))
-    plt.plot(time_data, [x[0] for x in data], label=algo)
+    plt.plot(time_data, [x[0] for x in new_data], label=algo)
+    programs_per_sec = sum([x[2] for x in processed_data]) / len(processed_data)
+    print(f"{algo:<15} {programs_per_sec:.0f} prog/s")
 
 plt.hlines([total_tasks], xmin=0, xmax=time_max, label="All tasks",
            color=f"C{len(processed_data)}", linestyles="dashed")
