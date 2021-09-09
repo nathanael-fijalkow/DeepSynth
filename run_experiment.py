@@ -29,6 +29,8 @@ verbosity = 0
 logging.basicConfig(format='%(message)s', level=logging_levels[verbosity])
 timeout = 100
 total_number_programs = 1_000_000
+# Set to False to disable bottom cached evaluation for heap search
+use_heap_search_cached_eval = True 
 
 list_algorithms = [
     (heap_search, 'heap search', {}),
@@ -60,7 +62,7 @@ def run_algorithm(is_correct_program: Callable[[Program, bool], bool], pcfg: PCF
         _ = next(gen)
     nb_programs = 0
     cumulative_probability = 0
-    cached_eval = algorithm == heap_search
+    cached_eval = use_heap_search_cached_eval and algorithm == heap_search
 
     while (search_time + evaluation_time < timeout and nb_programs < total_number_programs):
 
@@ -158,7 +160,7 @@ def run_algorithm_parallel(is_correct_program: Callable[[Program, bool], bool], 
     return program, search_time, evaluation_time, nb_programs, cumulative_probability, probability
     '''
     algorithm, _, param = list_algorithms[algo_index]
-    cached_eval = algorithm == heap_search
+    cached_eval = use_heap_search_cached_eval and algorithm == heap_search
 
     @ray.remote
     class DataCollectorActor:
