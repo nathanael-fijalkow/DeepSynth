@@ -221,7 +221,7 @@ class LocalBigramsPredictor(nn.Module):
     '''
     def __init__(self, 
         cfg_dictionary,
-        primitive_types, 
+        primitive_types,
         IOEncoder,
         IOEmbedder,
         variable_probability=0.2
@@ -242,14 +242,14 @@ class LocalBigramsPredictor(nn.Module):
         H = IOEncoder.output_dimension * self.IOEmbedder.output_dimension
 
         self.symbolToIndex = {
-            symbol: index for index,symbol in enumerate(self.primitive_types)
+            symbol: index for index,symbol in enumerate(self.primitive_types.keys())
             }
 
         # IMPORTANT: we do not predict variables!
         self.number_of_primitives = len(self.primitive_types)
         self.number_of_parents = self.number_of_primitives + 1 # could be None
-        self.maximum_arguments = max(len(self.primitive_types[primitive].arguments())
-                                     for primitive in range(self.number_of_primitives))
+        self.maximum_arguments = max(len(t.arguments())
+                                     for t in self.primitive_types.values())
         self.q_predictor = nn.Linear(H,
              self.number_of_parents*self.maximum_arguments*self.number_of_primitives)
 
@@ -283,7 +283,7 @@ class LocalBigramsPredictor(nn.Module):
                     parent_index = self.symbolToIndex[S[1][0]]
                     argument_number = S[1][1]
                 else:
-                    parent_index = len(self.number_of_primitives)  # None
+                    parent_index = self.number_of_primitives  # None
                     argument_number = 0
                 variables = []
                 for j, P in enumerate(cfg.rules[S]):
@@ -301,17 +301,19 @@ class LocalBigramsPredictor(nn.Module):
                         variables.append(cpy_P)
                 # If there are variables we need to normalise a bit earlier
                 if variables:
-                    total = sum(np.exp(rules[S][P][1])
+                    total = sum(torch.exp(rules[S][P][1]).item()
                                 for P in rules[S] if P not in variables)
-                    # Normalise rest
-                    to_add = np.log(
-                        1 - self.variable_probability) - np.log(total)
-                    for P in rules[S]:
-                        rules[S][P] = rules[S][P][0], rules[S][P][1] + to_add
-
+                    var_probability = self.variable_probability
+                    if total > 0:
+                        # Normalise rest
+                        to_add = np.log(
+                            1 - self.variable_probability) - np.log(total)
+                        for P in rules[S]:
+                            rules[S][P] = rules[S][P][0], rules[S][P][1] + to_add
+                    else:
+                        var_probability = 1
                     # Normalise variable probability
-                    normalised_variable_logpgob = np.log(
-                        self.variable_probability / len(variables))
+                    normalised_variable_logpgob = np.log(var_probability / len(variables))
                     for P in variables:
                         rules[S][P] = rules[S][P][0], normalised_variable_logpgob
 
