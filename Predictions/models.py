@@ -249,7 +249,7 @@ class LocalBigramsPredictor(nn.Module):
         self.number_of_primitives = len(self.primitive_types)
         self.number_of_parents = self.number_of_primitives + 1 # could be None
         self.maximum_arguments = max(len(self.primitive_types[primitive].arguments())
-                                     for primitive in self.primitive_types)
+                                     for primitive in range(self.number_of_primitives))
         self.q_predictor = nn.Linear(H,
              self.number_of_parents*self.maximum_arguments*self.number_of_primitives)
 
