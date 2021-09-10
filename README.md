@@ -29,18 +29,19 @@ developments in machine-learned program synthesizers._
 
 ```bash
 # clone this repository
+git clone https://github.com/nathanael-fijalkow/DeepSynth.git
 
 # create your new env
-conda create -n deep_synth
+conda create -n deep_synth python>=3.7 
 # activate it
 conda activate deep_synth
 # install pip
 yes | conda install pip
 # install this package and the dependencies
-pip install torch cython tqdm numpy ray
-pip install git+https://github.com/Theomat/sbsur
+pip install torch cython tqdm numpy matplotlib
 pip install git+https://github.com/MaxHalford/vose
-
+# If you want to do the parallel experiments
+pip install ray
 
 # You are good to go :)
 # To test your installation you can run the following tests:
@@ -48,6 +49,7 @@ python unit_test_algorithms.py
 python unit_test_programs.py
 python unit_test_algorithms.py
 python unit_test_predictions.py
+# Only if you installed ray
 python unit_test_parallel.py
 ```
 
@@ -56,8 +58,8 @@ python unit_test_parallel.py
 ```bash
 ./
         Algorithms/      # the search algorithms + parallel pipeline
-        DSL/             # DSL
-        list_dataset/    # DeepCoder dataset in pickle format
+        DSL/             # DSL: dreamcoder, deepcoder, flashfill
+        list_dataset/    # DreamCoder dataset in pickle format
         Predictions/     # all files related to the ANN for prediction of the grammars 
 ```
 
@@ -68,11 +70,14 @@ All of the files mentioned in this section are located in the root folder and fo
 Here is a short summary of each experiment:
 
 - ```run_random_PCFG_search.py``` produce a list of all programs generated under Xsec of search time by all algorithms.
-- ```run_experiments_<dataset>.py``` try to find solutions using an ANN to predict the grammar and for each algorithm logs the search data for the  corresponding ```<dataset>```. The suffix parallel can also be found indicating that the algorithms are run in parallel. The semantics experiments in the paper used a trained model.
+- ```run_random_PCFG_search_parallel.py``` same experiment but iwth the grammar_splitter and multiple CPUs.
+- ```run_experiments_<dataset>.py``` try to find solutions using an ANN to predict the grammar and for each algorithm logs the search data for the corresponding ```<dataset>```. The suffix ```parallel``` can also be found indicating that the algorithms are run in parallel. The semantics experiments in the paper used a trained model thatn can be obtained using ```produce_network.py``` or directly in the repository. The results can be plotted using ```plot_results_semantics.py```.
+
+Note that for the DreamCoder experiment in our paper, we did not use the cached evaluation of HeapSearch, this can be reproduced by setting ```use_heap_search_cached_eval``` to ```False``` in ```run_experiment.py```.
 
 ### Quick guide to using ANN to predict a grammar
 
-Is it heavily inspired by the file ```run_experiments_<dataset>.py```.
+Is it heavily inspired by the file ```model_loader.py```.
 
 First we create a prediction model:
 
@@ -190,13 +195,14 @@ if isinstance(model, GlobalRulesPredictor):
 
 ### Quick guide to train a neural network
 
-Just copy the model initialisation used in your experiment in the file ```produce_network.py```, then run the script.
-A ```.weights``` file should appear at the root.
-This will train a neural network on random generated programs.
-
+Just copy the model initialisation used in your experiment in the file ```produce_network.py``` or use the ones provided that correspond to our experiments.
+You can change the hyperparameters, then run the script.
+A ```.weights``` file should appear at the root folder.
+This will train a neural network on random generated programs as described in Appendix F in the paper.
 
 ### Quick guide to using a search algorithm for a grammar
 
-There are alredy functions for that in ```run_experiment.py```, namely ```run_algorithm``` and ```run_algorithm_parallel```.
+There are already functions for that in ```run_experiment.py```, namely ```run_algorithm``` and ```run_algorithm_parallel```.
+The former enables you to run the specified algorithm in a single thread while the latter in parallel with a grammar splitter.
+To produce a ```is_correct``` function you can use ```make_program_checker``` in ```experiment_helper.py```.
 
-The fromer enables you to run the specified algorithm in a single thread while the latter in parallel with a grammar splitter.
