@@ -1,3 +1,4 @@
+from pcfg import PCFG
 import random
 import logging 
 import torch
@@ -11,7 +12,7 @@ class Dataset(torch.utils.data.IterableDataset):
 
         size: size of the dataset
 
-        nb_inputs_max: number of IOs in a task
+        nb_examples_max: number of IOs in a task
         arguments: list of arguments for the program
 
         size_max: maximum number of elements in a list
@@ -20,8 +21,8 @@ class Dataset(torch.utils.data.IterableDataset):
     def __init__(self, 
         size, 
         dsl, 
-        pcfg, 
-        nb_inputs_max, 
+        pcfg_dict, 
+        nb_examples_max, 
         arguments,
         # IOEncoder,
         # IOEmbedder,
@@ -32,11 +33,13 @@ class Dataset(torch.utils.data.IterableDataset):
         super(Dataset).__init__()
         self.size = size
         self.dsl = dsl
-        self.pcfg = pcfg
         self.input_sampler = Input_sampler(size_max = size_max, lexicon = lexicon)
-        self.program_sampler = pcfg.sampling()
-        self.nb_inputs_max = nb_inputs_max
+        self.program_sampler = {t: pcfg.sampling() for t, pcfg in pcfg_dict.items()}
         self.arguments = arguments
+        self.allowed_types = list(self.program_sampler.keys())
+
+            
+        self.nb_examples_max = nb_examples_max
         # self.IOEncoder = IOEncoder
         # self.IOEmbedder = IOEmbedder
         self.ProgramEncoder = ProgramEncoder
@@ -50,11 +53,14 @@ class Dataset(torch.utils.data.IterableDataset):
         flag = True
         output = None
         while flag or output == None:
-            program = next(self.program_sampler)
+            # First select a type
+            selected_type = random.choice(self.allowed_types)
+            # print("Selected type:", selected_type)
+            program = next(self.program_sampler[selected_type])
             while program.is_constant():
-                program = next(self.program_sampler)
-            nb_IOs = random.randint(1, self.nb_inputs_max)
-            inputs = [[self.input_sampler.sample(type_) for type_ in self.arguments] for _ in range(nb_IOs)]
+                program = next(self.program_sampler[selected_type])
+            nb_IOs = random.randint(1, self.nb_examples_max)
+            inputs = [[self.input_sampler.sample(type_) for type_ in self.arguments[selected_type]] for _ in range(nb_IOs)]
             try:
                 outputs = []
                 for input_ in inputs:
@@ -67,11 +73,12 @@ class Dataset(torch.utils.data.IterableDataset):
                 flag = False
             except:
                 pass
-        
+        # print("Inputs:", inputs)
+        # print("Outputs:", outputs)
         # print("\tprogram:", program)
         IOs = [[I,O] for I,O in zip(inputs, outputs)]
         logging.debug('Found a program:\n{}\nand inputs:\n{}'.format(program,IOs))
-        return IOs, self.ProgramEncoder(program), program
+        return IOs, self.ProgramEncoder(program), program, selected_type
         # return self.IOEncoder.encode_IOs(IOs), self.ProgramEncoder(program)
     
 
