@@ -163,7 +163,6 @@ def __pcfg_from__(original_pcfg: PCFG, group: List[NodeData]) -> Tuple[cons_list
     min_depth: int = start[-1]
     program_prefix: cons_list = cons_list_split(
         group[0][2], length(group[0][2]) - l)[1]
-    # print("Program prefix=", program_prefix)
 
     # Ensure rules are depth ordered
     rules = {key: rules[key] for key in sorted(
@@ -236,26 +235,6 @@ def __quantity_split_nodes__(pcfg: PCFG, threshold: int, root: Optional[NodeData
     return nodes
 
 
-def find_partition(numbers, target, maximum_new_groups):
-    """
-    7/6 bound on optimal maximum sum partition.
-    """
-    target_groups = min(maximum_new_groups, int(np.sum(numbers) / target))
-    target_groups = max(2, target_groups)
-    groups = [[[], 0] for _ in range(target_groups)]
-    for i, n in sorted(enumerate(numbers), reverse=True, key=lambda x: x[1]):
-        best = 0
-        dist = 999999
-        for j, (_, somme) in enumerate(groups):
-            d = abs((somme + n) - target) - abs(somme - target)
-            if d < dist:
-                dist = d
-                best = j
-        groups[best][0].append(i)
-        groups[best][1] += n
-    return [index for index, _ in groups if index]
-
-
 def __get_context_holes__(pcfg, p: cons_list) -> List[Context]:
     lp = cons_list2list(p)
     stack = [pcfg.start]
@@ -302,76 +281,6 @@ def all_compatible(pcfg, pa, lpb, i):
         if not __are_compatible__(pcfg, pa, pb):
             return False
     return True
-# TODO: If you want to revive those methods you need to make sure the partitions created are compatible
-# def threshold_group_split(pcfg: PCFG, splits: int, alpha: float = 2):
-#     nodes: List[NodeData] = __threshold_split_nodes__(pcfg, alpha / splits)
-#     # Now we may have more splits than necessary
-#     # Idea: gather them together such that out of n quantities we can make k groups of equal mass
-#     # This is actually the partition problem => NP-hard :/
-#     # Instead we'll "simplify" the problem
-#     # Only nodes that have the same prefix can be grouped together
-#     groups: Dict[Tuple, int] = {}
-#     for _, _, _, prefix in nodes:
-#         if prefix not in groups:
-#             groups[prefix] = 1
-#         else:
-#             groups[prefix] += 1
-#     # Ok keep all that can't be grouped together
-#     alone_roots: List[Tuple[float, Context, cons_list, cons_list]] = [
-#         x for x in nodes if groups[x[-1]] == 1]
-
-#     # Remap groups to unique id
-#     id = 0
-#     group_id: Dict[cons_list, int] = {}
-#     for key, size in groups.items():
-#         if size > 1:
-#             group_id[key] = id
-#             id += 1
-#     # Create the groups
-#     del groups
-#     groups = [[] for _ in range(id)]
-#     group_mass = [[] for _ in range(id)]
-#     for el in nodes:
-#         id = group_id[el[-1]]
-#         groups[id].append(el)
-#         group_mass[id].append(el[0])
-#     for i, el in enumerate(group_mass):
-#         group_mass[i] = np.sum(group_mass[i])
-
-#     # Okay so now we know how much mass there is in each group
-#     # What we want to do is break down groups
-#     # For each group we have now a partition problem => NP-HARD :/
-#     # But actually it's great because we reduced the number of items
-#     while len(alone_roots) + len(groups) < splits:
-#         largest_group = np.argmax(group_mass)
-#         elements = groups.pop(largest_group)
-#         group_mass.pop(largest_group)
-#         maximum_creatable_groups = splits - len(alone_roots) - len(groups)
-#         indices = find_partition([x[0] for x in elements], 1 / splits, maximum_creatable_groups)
-#         new_groups = [[x for i, x in enumerate(elements) if i in index] for index in indices]
-#         # Add the new groups
-#         for group in new_groups:
-#             if len(group) == 1:
-#                 alone_roots.append(group[0])
-#             else:
-#                 groups.append(group)
-#                 group_mass.append(np.sum([x[0] for x in group]))
-
-#     # Add all the alone roots
-#     groups += [[el] for el in alone_roots]
-#     group_mass += [el[0] for el in alone_roots]
-#     return groups
-
-
-# def threshold_split(pcfg: PCFG, splits: int, alpha: float = 2):
-#     nodes: List[NodeData] = __threshold_split_nodes__(pcfg, alpha / splits)
-
-
-#     probs = [l for l, _, _, _ in nodes]
-#     partitions = find_partition(probs, 1/splits, splits)
-#     groups = [[x for i, x in enumerate(nodes) if i in indices]
-#               for indices in partitions]
-#     return groups
 
 
 def threshold_exchange_split(pcfg: PCFG, splits: int, alpha: float = 2):
@@ -550,8 +459,6 @@ if __name__ == "__main__":
     max_ratio = 1.01
 
     methods = [
-        # ("threshold group partition", lambda pcfg, splits: threshold_group_split(pcfg, splits, alpha_threshold)),
-        # ("threshold partition", lambda pcfg, splits: threshold_split(pcfg, splits, alpha_threshold)),
         ("threshold exchange", lambda pcfg, splits: threshold_exchange_split(pcfg, splits, alpha_threshold)),
         ("exchange", lambda pcfg, splits: exchange_split(pcfg, splits, max_ratio)),
         ]
