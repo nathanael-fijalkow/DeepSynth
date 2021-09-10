@@ -48,6 +48,19 @@ class Type:
         else:
             return []
 
+    def list_ground_types(self, polymorphic=False):
+        if isinstance(self, Arrow):
+            return self.type_in.list_ground_types(polymorphic) + self.type_out.list_ground_types(polymorphic)
+        elif isinstance(self, List):
+            base = self.type_elt.list_ground_types(polymorphic)
+            if base:
+                base.append(self)
+            return base
+        else:
+            if not polymorphic and isinstance(self, PolymorphicType):
+                return []
+            return [self]
+
     def ends_with(self, other):
         '''
         Checks whether other is a suffix of self and returns the list of arguments
