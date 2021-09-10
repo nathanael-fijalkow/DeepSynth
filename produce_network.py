@@ -4,6 +4,7 @@ import argparse
 import matplotlib.pyplot as plt
 
 from type_system import Arrow, List, INT, BOOL
+from Predictions.IOencodings import FixedSizeEncoding
 from Predictions.dataset_sampler import Dataset
 
 logging_levels = {0:logging.INFO, 1:logging.DEBUG}
@@ -95,7 +96,7 @@ dataset = Dataset(
     # IOEmbedder = IOEmbedder,
     ProgramEncoder=model.ProgramEncoder,
     size_max=model.IOEncoder.size_max,
-    lexicon=model.IOEncoder.lexicon,
+    lexicon=model.IOEncoder.lexicon[:-2] if isinstance(model.IOEncoder, FixedSizeEncoding) else model.IOEncoder.lexicon[:-4],
 )
 
 
