@@ -1,14 +1,10 @@
-import logging
-
-from torch._C import dtype
-
-from dsl import DSL
 from pcfg_logprob import LogProbPCFG
 from program import Program, Function, Variable, BasicPrimitive, New
 from type_system import Type, PolymorphicType, PrimitiveType, Arrow, List, UnknownType, INT, BOOL
 import torch
 from torch import nn
 from pcfg import PCFG
+import copy
 
 device = 'cpu'
 
@@ -94,7 +90,6 @@ class GlobalRulesPredictor(nn.Module):
         #     # print("size of x", x.size())
         #     res.append(x)
         # return torch.stack(res)
-
     def reconstruct_grammars(self, batch_predictions):
         '''
         reconstructs the grammars
@@ -105,7 +100,8 @@ class GlobalRulesPredictor(nn.Module):
             for S in self.cfg.rules:
                 rules[S] = {}
                 for P in self.cfg.rules[S]:
-                    rules[S][P] = self.cfg.rules[S][P], \
+                    cpy_P = copy.deepcopy(P) 
+                    rules[S][cpy_P] = self.cfg.rules[S][P], \
                     float(x[self.RuleToIndex[(S, P)]])
             grammar = PCFG(
                 start = self.cfg.start, 
@@ -198,7 +194,8 @@ class LocalRulesPredictor(nn.Module):
             for S in self.cfg.rules:
                 rules[S] = {}
                 for j, P in enumerate(self.cfg.rules[S]):
-                    rules[S][P] = self.cfg.rules[S][P], \
+                    cpy_P = copy.deepcopy(P)
+                    rules[S][cpy_P] = self.cfg.rules[S][P], \
                     probabilities[S][0 ,j]
             grammar = LogProbPCFG(self.cfg.start, 
                 rules, 
@@ -283,12 +280,13 @@ class LocalBigramsPredictor(nn.Module):
                     argument_number = 0
 
                 for j, P in enumerate(cfg.rules[S]):
+                    cpy_P = copy.deepcopy(P)
                     if isinstance(P, (BasicPrimitive, New)):
                         primitive_index = self.symbolToIndex[P]
-                        rules[S][P] = cfg.rules[S][P], \
+                        rules[S][cpy_P] = cfg.rules[S][P], \
                         x[parent_index, argument_number, primitive_index]
                     else: # P is a variable
-                        rules[S][P] = cfg.rules[S][P], -1
+                        rules[S][cpy_P] = cfg.rules[S][P], -1
                         # Think about it. What should be the log probability
                         # of a variable?
             grammar = LogProbPCFG(cfg.start, 
