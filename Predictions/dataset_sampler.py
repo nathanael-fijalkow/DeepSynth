@@ -1,10 +1,7 @@
 import random
 import logging 
 import torch
-from torch import tensor
-
-from pcfg import PCFG
-from type_system import Type, PolymorphicType, PrimitiveType, Arrow, List, UnknownType, INT, BOOL
+from type_system import STRING, Type, List, INT, BOOL
 from cons_list import tuple2constlist
 
 class Dataset(torch.utils.data.IterableDataset):
@@ -90,7 +87,8 @@ class Dataset(torch.utils.data.IterableDataset):
 class Input_sampler():
     """
     Object to sample element of a given type together with constraints parameters 
-    For now we can only sample from the type list[int]
+    For now we can only sample from the base types string, int and bool. And any list types that is based on lists or base types.
+    However we sample elements from a lexicon so we cannot sample both a int list and a string for example sincei nthat case the lexicon woul need to conatin integers and strings.
 
     size_max: max number of elements in an input 
     lexicon: admissible elements in a list
@@ -99,10 +97,18 @@ class Input_sampler():
         self.size_max = size_max
         self.lexicon = lexicon
 
-    def sample(self, type):
-        if type.__eq__(List(INT)):
+    def sample(self, type: Type):
+        if isinstance(type, List):
             size = random.randint(1, self.size_max)
-            res = [random.choice(self.lexicon) for _ in range(size)]
+            res = [self.sample(type.type_elt) for _ in range(size)]
             return res
+        if type.__eq__(INT):
+            return random.choice(self.lexicon)
+        elif type.__eq__(STRING):
+            size = random.randint(1, self.size_max)
+            res = "".join([random.choice(self.lexicon) for _ in range(size)])
+            return res
+        elif type.__eq__(BOOL):
+            return random.random() > .5
         assert(False)
 
