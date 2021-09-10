@@ -4,6 +4,7 @@ from type_system import Type, PolymorphicType, PrimitiveType, Arrow, List, Unkno
 import torch
 from torch import nn
 from pcfg import PCFG
+import numpy as np
 import copy
 
 device = 'cpu'
@@ -223,6 +224,7 @@ class LocalBigramsPredictor(nn.Module):
         primitive_types, 
         IOEncoder,
         IOEmbedder,
+        variable_probability=0.2
         ):
         super(LocalBigramsPredictor, self).__init__()
 
@@ -230,6 +232,8 @@ class LocalBigramsPredictor(nn.Module):
         self.primitive_types = primitive_types
         self.IOEncoder = IOEncoder
         self.IOEmbedder = IOEmbedder
+
+        self.variable_probability = variable_probability
 
         self.loss = lambda batch_grammar, batch_program:\
             - sum(grammar.log_probability_program(grammar.start, program)
@@ -258,14 +262,17 @@ class LocalBigramsPredictor(nn.Module):
 
         returns: list of PCFGs
         """
-        grammars = []
-        for x in batch_IOs:
-            x = self.IOEmbedder.forward([x])
-            x = self.q_predictor.view(self.number_of_parents, self.maximum_arguments, self.number_of_primitives)
-            x = nn.LogSoftmax(-1)(x)
+        x = self.IOEmbedder.forward(batch_IOs)
+        x = self.q_predictor.forward(x).view(-1, 
+            self.number_of_parents, self.maximum_arguments, self.number_of_primitives)
+        x = nn.LogSoftmax(-1)(x)
+        return x
+        
 
-            #Figure out how to encode the type request in each IOs!!!
-            type_request = None 
+
+    def reconstruct_grammars(self, batch_predictions, batch_type_requests):
+        grammars = []
+        for x, type_request in zip(batch_predictions, batch_type_requests):
             # Will crash here...
             cfg = self.cfg_dictionary[type_request]
 
@@ -276,26 +283,45 @@ class LocalBigramsPredictor(nn.Module):
                     parent_index = self.symbolToIndex[S[1][0]]
                     argument_number = S[1][1]
                 else:
-                    parent_index = len(self.number_of_primitives) # None
+                    parent_index = len(self.number_of_primitives)  # None
                     argument_number = 0
-
+                variables = []
                 for j, P in enumerate(cfg.rules[S]):
                     cpy_P = copy.deepcopy(P)
                     if isinstance(P, (BasicPrimitive, New)):
                         primitive_index = self.symbolToIndex[P]
                         rules[S][cpy_P] = cfg.rules[S][P], \
-                        x[parent_index, argument_number, primitive_index]
-                    else: # P is a variable
+                            x[parent_index, argument_number, primitive_index]
+                    else:  # P is a variable
                         rules[S][cpy_P] = cfg.rules[S][P], -1
                         # Think about it. What should be the log probability
                         # of a variable?
-            grammar = LogProbPCFG(cfg.start, 
-                rules, 
-                max_program_depth=cfg.max_program_depth)
+                        # All variables have probability mass self.variable_probability
+                        # then the probability of selecting a variable is uniform
+                        variables.append(cpy_P)
+                # If there are variables we need to normalise a bit earlier
+                if variables:
+                    total = sum(np.exp(rules[S][P][1])
+                                for P in rules[S] if P not in variables)
+                    # Normalise rest
+                    to_add = np.log(
+                        1 - self.variable_probability) - np.log(total)
+                    for P in rules[S]:
+                        rules[S][P] = rules[S][P][0], rules[S][P][1] + to_add
+
+                    # Normalise variable probability
+                    normalised_variable_logpgob = np.log(
+                        self.variable_probability / len(variables))
+                    for P in variables:
+                        rules[S][P] = rules[S][P][0], normalised_variable_logpgob
+
+            grammar = LogProbPCFG(cfg.start,
+                                  rules,
+                                  max_program_depth=cfg.max_program_depth)
             grammar.clean()
             grammars.append(grammar)
         return grammars
-            
+
     def ProgramEncoder(self, program): 
         return program
 
