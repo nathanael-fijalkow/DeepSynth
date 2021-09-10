@@ -206,3 +206,14 @@ There are already functions for that in ```run_experiment.py```, namely ```run_a
 The former enables you to run the specified algorithm in a single thread while the latter in parallel with a grammar splitter.
 To produce a ```is_correct``` function you can use ```make_program_checker``` in ```experiment_helper.py```.
 
+### How to download the DeepCoder dataset?
+
+First, download the archive from here: <https://storage.googleapis.com/deepcoder/dataset.tar.gz> in a folder ```deepcoder_dataset``` at the root of **DeepSynth**.
+Then you simply need to:
+
+```bash
+gunzip dataset.tar.gz
+tar -xf dataset.tar
+```
+
+You should see a few JSON files.

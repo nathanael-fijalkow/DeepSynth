@@ -7,7 +7,7 @@ import os
 from run_experiment import gather_data, list_algorithms
 from deepcoder_dataset_loader import filter_tasks_for_model, load_tasks
 
-subset = "dataset/T=1_all.json"
+subset = "deepcoder_dataset/T=1_all.json"
 datataset_name = "deepcoder"
 save_folder = "."
 
