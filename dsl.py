@@ -8,6 +8,8 @@ from program import Program, Function, Variable, BasicPrimitive, New
 from cfg import CFG
 from pcfg import PCFG
 
+from itertools import combinations_with_replacement
+
 class DSL:
     """
     Object that represents a domain specific language
@@ -35,6 +37,35 @@ class DSL:
             else:
                 P = New(body=p.body, type_=primitive_types[p], probability={})
                 self.list_primitives.append(P)
+    
+    def primitive_types(self):
+        set_basic_types = set()
+        for P in self.list_primitives:
+            set_basic_types_P = P.type.list_ground_types(polymorphic=False)
+            for x in set_basic_types_P:
+                set_basic_types.add(x)
+        return list(set_basic_types)
+
+    def return_types(self):
+        set_basic_types = set()
+        for P in self.list_primitives:
+            set_basic_types.add(P.type.returns())
+        return list(set_basic_types)
+
+
+    def all_type_requests(self, nb_arguments_max: int):
+        types = self.primitive_types()
+        all_return_types = self.return_types()
+        requests = []
+        for nb_arguments in range(1, nb_arguments_max + 1):
+            signatures = combinations_with_replacement(types, nb_arguments)
+            for signature in signatures:
+                for return_type in all_return_types:
+                    cur_type = return_type
+                    for el in signature:
+                        cur_type = Arrow(el, cur_type)
+                    requests.append(cur_type)
+        return requests
 
     def __str__(self):
         s = "Print a DSL\n"
