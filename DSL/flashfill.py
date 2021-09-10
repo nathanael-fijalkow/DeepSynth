@@ -22,7 +22,7 @@ primitive_types = {
   'contains' : Arrow(STRING,Arrow(STRING,BOOL)),
 }
 
-def indexof(string1, string2, int1) -> str:
+def indexof(string1, string2) -> int:
   match = re.search(string1, string2)
   if match:
     match.start()
@@ -41,7 +41,7 @@ semantics = {
   'len' : lambda string1: len(string1),
   'str2int' : lambda string1: int(string1),
   'int.ite'  : lambda bool1, int1, int2: int1 if bool1 else int2,
-  'indexof' : lambda string1: lambda string2: lambda int1: indexof(string1, string2, int1),
+  'indexof' : lambda string1: lambda string2: indexof(string1, string2),
   'prefixof' : lambda string1, string2: string2.startswith(string1),
   'suffixof'  : lambda string1, string2: string2.endswith(string1),
   'contains' : lambda string1, string2: string1 in string2,
