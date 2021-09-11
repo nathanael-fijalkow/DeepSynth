@@ -44,6 +44,7 @@ semantics = {
   'str2int' : lambda string1: int(string1),
   'int.ite'  : lambda bool1, int1, int2: int1 if bool1 else int2,
   'indexof' : lambda string1: lambda string2: indexof(string1, string2),
+  '=': lambda string1: lambda string2: string1 == string2,
   'prefixof' : lambda string1, string2: string2.startswith(string1),
   'suffixof'  : lambda string1, string2: string2.endswith(string1),
   'contains' : lambda string1, string2: string1 in string2,
