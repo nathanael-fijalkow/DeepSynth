@@ -40,6 +40,8 @@ yes | conda install pip
 # install this package and the dependencies
 pip install torch cython tqdm numpy matplotlib
 pip install git+https://github.com/MaxHalford/vose
+# For flashfill dataset
+pip install sexpdata
 # If you want to do the parallel experiments
 pip install ray
 
