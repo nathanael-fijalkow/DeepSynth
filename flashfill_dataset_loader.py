@@ -31,6 +31,9 @@ characters = [chr(ord('a') + j)
 
 WORDS = None
 
+def get_lexicon():
+    return delimiters + characters
+
 
 def randomDelimiter():
     return random.choice(delimiters)
@@ -339,6 +342,9 @@ def load_tasks(folder="flashfill_dataset"):
         cheatingTasks.append(cheat)
     # for p in tasks:
     #     guessConstantStrings(p)
+
+    tasks = [ (name, [(["".join(x) for x in xs], "".join(y)) for xs, y in examples]) for name, examples in tasks]
+
     return tasks, cheatingTasks
 
 
@@ -373,18 +379,16 @@ def guessConstantStrings(task):
 
 if __name__ == "__main__":
     challenge, _ = load_tasks("flashfill_dataset")
-    print(challenge)
     tasks = makeTasks()
-    print(tasks)
     print(len(tasks), "synthetic tasks")
     tasks = []
     for t in tasks + challenge:
-        print(t.name)
-        for xs, y in t.examples:
+        print(t[0])
+        for xs, y in t[1]:
             xs = ['"' + "".join(x) + '"' for x in xs]
             y = "".join(y)
             print('f(%s) = "%s"' % (", ".join(xs), y))
-        print("\t{%s}" % (t.stringConstants))
+        # print("\t{%s}" % (t.stringConstants))
         print()
     assert False
     # def maximumLength(x):
