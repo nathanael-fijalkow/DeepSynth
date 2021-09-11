@@ -4,6 +4,8 @@ import sys
 from type_system import Type, PolymorphicType, PrimitiveType, Arrow, List, UnknownType
 from cons_list import index
 
+from itertools import combinations_with_replacement
+
 # dictionary { number of environment : value }
 # environment: a cons list
 # list = None | (value, list)
@@ -83,6 +85,20 @@ class Program:
 
     def is_constant(self):
         return True
+
+    def derive_with_constants(self, constants):
+        return self
+
+    def make_all_constant_variations(self, constants_list):
+        n_constants = self.count_constants()
+        if n_constants == 0:
+            return [self]
+        all_possibilities = combinations_with_replacement(constants_list, n_constants)
+        return [self.derive_with_constants(possibility) for possibility in all_possibilities]
+        
+
+    def count_constants(self):
+        return 0
 
 class Variable(Program):
     def __init__(self, variable, type_=UnknownType(), probability={}):
@@ -183,6 +199,12 @@ class Function(Program):
     def is_constant(self):
         return all([self.function.is_constant()] + [arg.is_constant() for arg in self.arguments])
 
+    def count_constants(self):
+        return self.function.count_constants() + sum([arg.count_constants() for arg in self.arguments])
+
+    def derive_with_constants(self, constants):
+        return Function(self.function.derive_with_functions(constants), [argument.derive_with_functions(constants) for argument in self.arguments], self.type, self.probability)
+
 class Lambda(Program):
     def __init__(self, body, type_=UnknownType(), probability={}):
         # assert isinstance(body, Program)
@@ -219,11 +241,13 @@ class Lambda(Program):
             return None
 
 class BasicPrimitive(Program):
-    def __init__(self, primitive, type_=UnknownType(), probability={}):
+    def __init__(self, primitive, type_=UnknownType(), probability={}, constant_evaluation=None):
         # assert isinstance(primitive, str)
         self.primitive = primitive
         # assert isinstance(type_, Type)
         self.type = type_
+        self.is_a_constant = not isinstance(type_, Arrow)
+        self.constant_evaluation = constant_evaluation
         self.hash = hash(primitive) + self.type.hash
 
         self.probability = probability
@@ -236,10 +260,25 @@ class BasicPrimitive(Program):
         return format(self.primitive)
 
     def eval(self, dsl, environment, i):
+        if self.is_a_constant and self.constant_evaluation:
+            return self.constant_evaluation
         return dsl.semantics[self.primitive]
 
     def eval_naive(self, dsl, environment):
+        if self.is_a_constant and self.constant_evaluation:
+            return self.constant_evaluation
         return dsl.semantics[self.primitive]
+
+    def count_constants(self):
+        return 1 if self.is_a_constant else 0
+
+    def derive_with_constants(self, constants):
+        if self.is_a_constant:
+            value = constants.pop()
+            return BasicPrimitive(self.primitive, self.type, self.probability, value)
+        else:
+            return self
+
 
 class New(Program):
     def __init__(self, body, type_=UnknownType(), probability={}):
@@ -275,3 +314,9 @@ class New(Program):
 
     def is_constant(self):
         return self.body.is_constant()
+
+    def count_constants(self):
+        return self.body.count_constants()
+
+    def derive_with_constants(self, constants):
+        return New(self.body.derive_with_constants(constants), self.type, self.probability)
