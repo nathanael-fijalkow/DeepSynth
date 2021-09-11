@@ -1,4 +1,5 @@
-from Predictions.models import GlobalRulesPredictor
+from type_system import BOOL, INT, STRING, Arrow
+from Predictions.models import GlobalRulesPredictor, LocalBigramsPredictor
 from pcfg import PCFG
 from typing import Callable, List, Tuple
 from dsl import DSL
@@ -59,7 +60,34 @@ def task_set2dataset(tasks, model, dsl) -> List[Tuple[str, PCFG, Callable[[Progr
             continue
         if isinstance(model, GlobalRulesPredictor):
             grammar = model.reconstruct_grammars([grammar])[0]
+        if isinstance(model, LocalBigramsPredictor):
+            grammar = model.reconstruct_grammars(
+                [grammar], [__get_type_request(examples)])[0]
+            grammar = grammar.normalise()
 
         dataset.append(
             (name, grammar, make_program_checker_with_constants(dsl, examples, constants) if constants else make_program_checker(dsl, examples)))
     return dataset
+
+
+def __get_type(el, fallback=None):
+    if isinstance(el, bool):
+        return BOOL
+    elif isinstance(el, int):
+        return INT
+    elif isinstance(el, str):
+        return STRING
+    elif isinstance(el, list):
+        if len(el) > 0:
+            return List(__get_type(el[0]))
+        else:
+            return __get_type(fallback[0], fallback[1:])
+    elif isinstance(el, tuple):
+        assert el[-1] == None
+        return __get_type(el[0], el[1:-1])
+    assert False, f"Unknown type for:{el}"
+
+
+def __get_type_request(examples):
+    input, output = examples[0]
+    return Arrow(__get_type(input[0], [i[0] for i, o in examples[1:]]), __get_type(output, [o for i, o in examples[1:]]))
