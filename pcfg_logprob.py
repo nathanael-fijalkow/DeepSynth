@@ -117,12 +117,12 @@ class LogProbPCFG:
         self.clean()
         normalised_rules = {}
         for S in self.rules:
-            s = sum(exp(self.rules[S][P][1].item()) for P in self.rules[S])
+            s = sum(exp(self.rules[S][P][1]) for P in self.rules[S])
             if s > 0:
                 normalised_rules[S] = {}
                 for P in self.rules[S]:
                     normalised_rules[S][P] = \
-                    self.rules[S][P][0], exp(self.rules[S][P][1].item()) / s
+                    self.rules[S][P][0], exp(self.rules[S][P][1]) / s
         return PCFG(self.start, 
             normalised_rules, 
             max_program_depth=self.max_program_depth)
