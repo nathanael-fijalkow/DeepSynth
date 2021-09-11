@@ -5,6 +5,8 @@ import torch
 from type_system import STRING, Type, List, INT, BOOL
 from cons_list import tuple2constlist
 
+from flashfill_dataset_loader import randomWord
+
 class Dataset(torch.utils.data.IterableDataset):
     """
         Dataset as an iterator: gives a stream of tasks
@@ -29,6 +31,7 @@ class Dataset(torch.utils.data.IterableDataset):
         ProgramEncoder,
         size_max,
         lexicon,
+        for_flashfill=False
         ):
         super(Dataset).__init__()
         self.size = size
@@ -44,6 +47,7 @@ class Dataset(torch.utils.data.IterableDataset):
         # self.IOEmbedder = IOEmbedder
         self.ProgramEncoder = ProgramEncoder
         self.lexicon = lexicon
+        self.for_flashfill = for_flashfill
 
     def __iter__(self):
         return (self.__single_data__() for i in range(self.size))
@@ -59,8 +63,17 @@ class Dataset(torch.utils.data.IterableDataset):
             program = next(self.program_sampler[selected_type])
             while program.is_constant():
                 program = next(self.program_sampler[selected_type])
+         
+            if self.for_flashfill:
+                # We have to init the constants
+                n = program.count_constants()
+                constants = [randomWord() for _ in range(n)]
+                program = program.derive_with_constants(constants)
+
+
             nb_IOs = random.randint(1, self.nb_examples_max)
             inputs = [[self.input_sampler.sample(type_) for type_ in self.arguments[selected_type]] for _ in range(nb_IOs)]
+
             try:
                 outputs = []
                 for input_ in inputs:
