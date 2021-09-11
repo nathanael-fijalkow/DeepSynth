@@ -6,7 +6,7 @@ from type_system import INT, Arrow, List
 from typing import Dict, Tuple, Type
 from cfg import CFG
 from dsl import DSL
-from DSL import list, deepcoder
+from DSL import list, deepcoder, flashfill
 from Predictions.IOencodings import FixedSizeEncoding
 from Predictions.embeddings import RNNEmbedding, SimpleEmbedding
 from Predictions.models import GlobalRulesPredictor, LocalBigramsPredictor, LocalRulesPredictor
@@ -203,3 +203,47 @@ def build_deepcoder_generic_model(max_program_depth: int = 4, autoload: bool = T
             print("Loaded weights.")
 
     return deepcoder_dsl, cfg_dict, model
+
+
+def build_flashfill_generic_model(max_program_depth: int = 4, autoload: bool = True) -> Tuple[DSL, CFG, LocalBigramsPredictor]:
+    from flashfill_dataset_loader import get_lexicon
+    size_max = 10  # maximum number of elements in a list (input or output)
+    nb_arguments_max = 3
+    # all elements of a list must be from lexicon
+    lexicon = get_lexicon()
+
+    embedding_output_dimension = 10
+    # only useful for RNNEmbedding
+    number_layers_RNN = 1
+    size_hidden = 64
+    flashfill_dsl = DSL(flashfill.semantics,
+                        flashfill.primitive_types, flashfill.no_repetitions)
+
+    flashfill_dsl.instantiate_polymorphic_types()
+    requests = flashfill_dsl.all_type_requests(nb_arguments_max)
+    cfg_dict = {}
+    for type_req in requests:
+        # Skip if it contains a list list
+        if any(ground_type.size() >= 3 for ground_type in type_req.list_ground_types()):
+            continue
+        # Why the try?
+        # Because for request type: int -> list(list(int)) in a DSL without a method to go from int -> list(int)
+        # Then there is simply no way to produce the correct output type
+        # Thus when we clean the PCFG by removing useless rules, we remove the start symbol thus creating an error
+        try:
+            cfg_dict[type_req] = flashfill_dsl.DSL_to_CFG(
+                type_req, max_program_depth=max_program_depth)
+        except:
+            continue
+    print("Requests:", cfg_dict.keys())
+
+    model = __build_generic_model(
+        flashfill_dsl, cfg_dict, nb_arguments_max, lexicon, size_max, size_hidden, embedding_output_dimension, number_layers_RNN)
+
+    if autoload:
+        weights_file = get_model_name(model) + "_flashfill.weights"
+        if os.path.exists(weights_file):
+            model.load_state_dict(torch.load(weights_file))
+            print("Loaded weights.")
+
+    return flashfill_dsl, cfg_dict, model
