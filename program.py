@@ -94,7 +94,7 @@ class Program:
         if n_constants == 0:
             return [self]
         all_possibilities = combinations_with_replacement(constants_list, n_constants)
-        return [self.derive_with_constants(possibility) for possibility in all_possibilities]
+        return [self.derive_with_constants(list(possibility)) for possibility in all_possibilities]
         
 
     def count_constants(self):
