@@ -203,7 +203,7 @@ class Function(Program):
         return self.function.count_constants() + sum([arg.count_constants() for arg in self.arguments])
 
     def derive_with_constants(self, constants):
-        return Function(self.function.derive_with_functions(constants), [argument.derive_with_functions(constants) for argument in self.arguments], self.type, self.probability)
+        return Function(self.function.derive_with_constants(constants), [argument.derive_with_constants(constants) for argument in self.arguments], self.type, self.probability)
 
 class Lambda(Program):
     def __init__(self, body, type_=UnknownType(), probability={}):
@@ -274,8 +274,7 @@ class BasicPrimitive(Program):
 
     def derive_with_constants(self, constants):
         if self.is_a_constant:
-            value = constants.pop()
-            return BasicPrimitive(self.primitive, self.type, self.probability, value)
+            return BasicPrimitive(self.primitive, self.type, self.probability, constants.pop())
         else:
             return self
 
