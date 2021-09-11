@@ -46,7 +46,7 @@ def randomCharacter():
 def randomWord(minimum=1, predicate=None):
     global WORDS
     if WORDS is None:
-        tasks, cheating = load_tasks()
+        tasks = load_tasks()
         observations = {''.join(z)
                         for t in tasks
                         for xs, y in t[1]
@@ -98,8 +98,6 @@ def makeTasks():
     NUMBEROFEXAMPLES = 4
 
     problems = []
-
-    def toList(s): return [c for c in s]
     # Converts strings into a list of characters depending on the type
 
     def preprocess(x):
@@ -271,9 +269,9 @@ def makeTasks():
             
 
     # for p in problems:
-        # guessConstantStrings(p)
+        # add_constants_to_task(p)
 
-    return problems
+    return [add_constants_to_task(p) for p in problems]
 
 
 def load_tasks(folder="flashfill_dataset"):
@@ -341,16 +339,19 @@ def load_tasks(folder="flashfill_dataset"):
         tasks.append(task)
         cheatingTasks.append(cheat)
     # for p in tasks:
-    #     guessConstantStrings(p)
+    #     add_constants_to_task(p)
 
     tasks = [ (name, [(["".join(x) for x in xs], "".join(y)) for xs, y in examples]) for name, examples in tasks]
+    return [add_constants_to_task(p) for p in tasks]
+
 
     return tasks, cheatingTasks
 
 
-def guessConstantStrings(task):
-    if task.request.returns() == STRING:
-        examples = task.examples
+def add_constants_to_task(task):
+    name, examples = task
+    constants = []
+    if type(examples[0][-1]) == str:
         guesses = {}
         N = 10
         T = 2
@@ -362,23 +363,14 @@ def guessConstantStrings(task):
                 if len(l) > 2:
                     guesses[l] = guesses.get(l, 0) + 1
 
-        task.stringConstants = [g for g, f in guesses.items()
+        constants = [g for g, f in guesses.items()
                                 if f >= T]
-    else:
-        task.stringConstants = []
-                    
-
-    task.BIC = 1.
-    task.maxParameters = 1
-
-    task.specialTask = ("stringConstant",
-                        {"maxParameters": task.maxParameters,
-                         "stringConstants": task.stringConstants})
+    return name, examples, constants
 
 
 
 if __name__ == "__main__":
-    challenge, _ = load_tasks("flashfill_dataset")
+    challenge = load_tasks("flashfill_dataset")
     tasks = makeTasks()
     print(len(tasks), "synthetic tasks")
     tasks = []
