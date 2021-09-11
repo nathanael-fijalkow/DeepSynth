@@ -5,7 +5,7 @@ primitive_types = {
   '++' : Arrow(STRING,Arrow(STRING,STRING)),
   'replace' : Arrow(STRING,Arrow(STRING,Arrow(STRING,STRING))),
   'at' : Arrow(STRING,Arrow(INT,STRING)),
-  'into2str' : Arrow(INT,STRING),
+  'int2str' : Arrow(INT,STRING),
   'str.ite' : Arrow(BOOL,Arrow(STRING,Arrow(STRING,STRING))),
   'substr' : Arrow(STRING,Arrow(INT,Arrow(INT,STRING))),
 
@@ -20,6 +20,7 @@ primitive_types = {
   'prefixof' : Arrow(STRING,Arrow(STRING,BOOL)),
   'suffixof' : Arrow(STRING,Arrow(STRING,BOOL)),
   'contains' : Arrow(STRING,Arrow(STRING,BOOL)),
+  
   'constant' : STRING
 }
 
