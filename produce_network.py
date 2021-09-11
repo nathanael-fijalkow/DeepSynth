@@ -17,13 +17,14 @@ args,unknown = parser.parse_known_args()
 verbosity = int(args.verbose)
 logging.basicConfig(format='%(message)s', level=logging_levels[verbosity])
 
-from model_loader import build_deepcoder_generic_model, build_deepcoder_intlist_model, build_dreamcoder_intlist_model, get_model_name
+from model_loader import build_deepcoder_generic_model, build_deepcoder_intlist_model, build_dreamcoder_intlist_model, build_flashfill_generic_model, get_model_name
 
 
 ## HYPERPARMETERS
 
 # dataset_name = "dreamcoder"
-dataset_name = "deepcoder"
+# dataset_name = "deepcoder"
+dataset_name = "flashfill"
 
 # Set to None for model invariant of type request
 # type_request = Arrow(List(INT), List(INT))
@@ -42,6 +43,8 @@ elif dataset_name == "deepcoder":
         cur_dsl, cfg_dict, model = build_deepcoder_generic_model()
     else:
         cur_dsl, cfg, model = build_deepcoder_intlist_model()
+elif dataset_name == "flashfill":
+    cur_dsl, cfg_dict, model = build_flashfill_generic_model()
 else:
     assert False, f"Unrecognized dataset: {dataset_name}"
 
@@ -109,14 +112,18 @@ def print_embedding(model):
 dataset = Dataset(
     size=dataset_size,
     dsl=cur_dsl,
-    pcfg_dict={type_request: cfg.CFG_to_Uniform_PCFG()} if type_request else {t: cfg.CFG_to_Uniform_PCFG() for t, cfg in cfg_dict.items()},
+    pcfg_dict={type_request: cfg.CFG_to_Uniform_PCFG()} if type_request else {
+        t: cfg.CFG_to_Uniform_PCFG() for t, cfg in cfg_dict.items()},
     nb_examples_max=nb_examples_max,
-    arguments={type_request: type_request.arguments()} if type_request else {t: t.arguments() for t in cfg_dict.keys()},
+    arguments={type_request: type_request.arguments()} if type_request else {
+        t: t.arguments() for t in cfg_dict.keys()},
     # IOEncoder = IOEncoder,
     # IOEmbedder = IOEmbedder,
     ProgramEncoder=model.ProgramEncoder,
     size_max=model.IOEncoder.size_max,
-    lexicon=model.IOEncoder.lexicon[:-2] if isinstance(model.IOEncoder, FixedSizeEncoding) else model.IOEncoder.lexicon[:-4],
+    lexicon=model.IOEncoder.lexicon[:-2] if isinstance(
+        model.IOEncoder, FixedSizeEncoding) else model.IOEncoder.lexicon[:-4],
+    for_flashfill=dataset_name == "flashfill"
 )
 
 
