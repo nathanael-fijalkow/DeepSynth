@@ -2,7 +2,7 @@
 import os
 import typing
 import torch
-from type_system import INT, Arrow, List
+from type_system import INT, STRING, Arrow, List
 from typing import Dict, Tuple, Type
 from cfg import CFG
 from dsl import DSL
@@ -225,6 +225,8 @@ def build_flashfill_generic_model(max_program_depth: int = 4, autoload: bool = T
     for type_req in requests:
         # Skip if it contains a list list
         if any(ground_type.size() >= 3 for ground_type in type_req.list_ground_types()):
+            continue
+        if any(arg != STRING for arg in type_req.arguments()):
             continue
         # Why the try?
         # Because for request type: int -> list(list(int)) in a DSL without a method to go from int -> list(int)
