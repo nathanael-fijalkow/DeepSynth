@@ -270,7 +270,7 @@ class LocalBigramsPredictor(nn.Module):
         
 
 
-    def reconstruct_grammars(self, batch_predictions, batch_type_requests):
+    def reconstruct_grammars(self, batch_predictions, batch_type_requests, tensors=True):
         grammars = []
         for x, type_request in zip(batch_predictions, batch_type_requests):
             # Will crash here...
@@ -290,8 +290,13 @@ class LocalBigramsPredictor(nn.Module):
                     cpy_P = copy.deepcopy(P)
                     if isinstance(P, (BasicPrimitive, New)):
                         primitive_index = self.symbolToIndex[P]
-                        rules[S][cpy_P] = cfg.rules[S][P], \
-                            x[parent_index, argument_number, primitive_index]
+                        if tensors:
+                            rules[S][cpy_P] = cfg.rules[S][P], \
+                                x[parent_index, argument_number, primitive_index]
+                        else:
+                            rules[S][cpy_P] = cfg.rules[S][P], \
+                                x[parent_index, argument_number,
+                                    primitive_index].item()
                     else:  # P is a variable
                         rules[S][cpy_P] = cfg.rules[S][P], -1
                         # Think about it. What should be the log probability
@@ -301,8 +306,13 @@ class LocalBigramsPredictor(nn.Module):
                         variables.append(cpy_P)
                 # If there are variables we need to normalise a bit earlier
                 if variables:
-                    total = sum(torch.exp(rules[S][P][1]).item()
+                    if tensors:
+                        total = sum(np.exp(rules[S][P][1].item())
                                 for P in rules[S] if P not in variables)
+                    else:
+                        total = sum(np.exp(rules[S][P][1])
+                                for P in rules[S] if P not in variables)
+
                     var_probability = self.variable_probability
                     if total > 0:
                         # Normalise rest

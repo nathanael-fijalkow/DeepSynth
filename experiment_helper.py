@@ -62,7 +62,7 @@ def task_set2dataset(tasks, model, dsl) -> List[Tuple[str, PCFG, Callable[[Progr
             grammar = model.reconstruct_grammars([grammar])[0]
         if isinstance(model, LocalBigramsPredictor):
             grammar = model.reconstruct_grammars(
-                [grammar], [__get_type_request(examples)])[0]
+                [grammar], [__get_type_request(examples)], tensors=False)[0]
             grammar = grammar.normalise()
 
         dataset.append(
