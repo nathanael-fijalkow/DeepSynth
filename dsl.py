@@ -1,12 +1,9 @@
 from collections import deque
 import copy
-import random
-import numpy as np
 
 from type_system import Type, PolymorphicType, PrimitiveType, Arrow, List, UnknownType, INT, BOOL
 from program import Program, Function, Variable, BasicPrimitive, New
 from cfg import CFG
-from pcfg import PCFG
 
 from itertools import combinations_with_replacement
 
