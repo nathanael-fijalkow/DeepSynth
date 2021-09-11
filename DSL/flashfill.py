@@ -20,6 +20,7 @@ primitive_types = {
   'prefixof' : Arrow(STRING,Arrow(STRING,BOOL)),
   'suffixof' : Arrow(STRING,Arrow(STRING,BOOL)),
   'contains' : Arrow(STRING,Arrow(STRING,BOOL)),
+  'constant' : STRING
 }
 
 def indexof(string1, string2) -> int:
@@ -45,6 +46,7 @@ semantics = {
   'prefixof' : lambda string1, string2: string2.startswith(string1),
   'suffixof'  : lambda string1, string2: string2.endswith(string1),
   'contains' : lambda string1, string2: string1 in string2,
+  'constant' : None
 }
 
 no_repetitions = {}
