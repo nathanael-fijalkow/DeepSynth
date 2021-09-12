@@ -210,7 +210,7 @@ To produce a ```is_correct``` function you can use ```make_program_checker``` in
 
 ### How to download the DeepCoder dataset?
 
-First, download the archive from here: <https://storage.googleapis.com/deepcoder/dataset.tar.gz> in a folder ```deepcoder_dataset``` at the root of **DeepSynth**.
+First, download the archive from here (Deepcoder repo): <https://storage.googleapis.com/deepcoder/dataset.tar.gz> in a folder ```deepcoder_dataset``` at the root of **DeepSynth**.
 Then you simply need to:
 
 ```bash
