@@ -22,13 +22,13 @@ from model_loader import build_deepcoder_generic_model, build_deepcoder_intlist_
 
 ## HYPERPARMETERS
 
-# dataset_name = "dreamcoder"
+dataset_name = "dreamcoder"
 # dataset_name = "deepcoder"
-dataset_name = "flashfill"
+# dataset_name = "flashfill"
 
 # Set to None for model invariant of type request
-# type_request = Arrow(List(INT), List(INT))
-type_request = None
+type_request = Arrow(List(INT), List(INT))
+# type_request = None
 
 dataset_size: int = 10_000
 nb_epochs: int = 1
@@ -48,6 +48,9 @@ elif dataset_name == "flashfill":
 else:
     assert False, f"Unrecognized dataset: {dataset_name}"
 
+
+print("Training model:", get_model_name(model), "on", dataset_name)
+print("Type Request:", type_request or "generic")
 
 if type_request:
     nb_examples_max: int = 2
