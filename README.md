@@ -1,8 +1,7 @@
 # DeepSynth
 General-purpose program synthesiser.
 
-This is the repository for the code of the paper **"Scaling Neural Program Synthesis with Distribution-based Search"** submitted at AAAI 2021.
-[Link to paper](TODO)
+This is the repository for the code of the paper **"Scaling Neural Program Synthesis with Distribution-based Search"**.
 
 **Authors**:
 Anonymous
