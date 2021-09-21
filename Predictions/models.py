@@ -1,52 +1,58 @@
-from pcfg_logprob import LogProbPCFG
-from program import Program, Function, Variable, BasicPrimitive, New
-from type_system import Type, PolymorphicType, PrimitiveType, Arrow, List, UnknownType, INT, BOOL
 import torch
 from torch import nn
-from pcfg import PCFG
 import numpy as np
+
 import copy
+
+from pcfg import PCFG
+from pcfg_logprob import LogProbPCFG
+from program import Function, Variable, BasicPrimitive, New
 
 device = 'cpu'
 
-def block(input_dim, output_dimension, activation):
-    return nn.Sequential(
-        nn.Linear(input_dim, output_dimension),
-        activation,
-    )
+
+def guess_output_size(latent_encoder, H):
+    test_input = torch.zeros(H)
+    with torch.no_grad():
+        output = latent_encoder(test_input)
+        output_size = output.size()[0]
+    return output_size
+
 
 class RulesPredictor(nn.Module):
     '''
     cfg: a cfg template
     IOEncoder: encode inputs and outputs
     IOEmbedder: embeds inputs and outputs
-    size_hidden: size for hidden layers
+    nn: take embedded inputs and outputs and maps them in a latent dimension
     '''
-    def __init__(self, 
-        cfg, 
-        IOEncoder,
-        IOEmbedder,
-        size_hidden,
-        ):
+
+    def __init__(self,
+                 cfg,
+                 IOEncoder,
+                 IOEmbedder,
+                 latent_encoder,
+                 ):
         super(RulesPredictor, self).__init__()
 
         self.cfg = cfg
         self.IOEncoder = IOEncoder
         self.IOEmbedder = IOEmbedder
+        self.latent_encoder = latent_encoder
+
+        # Guess output size of NN
+        H = IOEncoder.output_dimension * self.IOEmbedder.output_dimension
+        output_size = guess_output_size(latent_encoder, H)
 
         self.loss = torch.nn.BCELoss(reduction='mean')
 
         self.init_RuleToIndex()
 
-        # layers
-        H = IOEncoder.output_dimension * self.IOEmbedder.output_dimension
-        self.hidden = nn.Sequential(
-            block(H, size_hidden, nn.Sigmoid()),
-            # block(size_hidden, size_hidden, nn.LeakyReLU()),
-            block(size_hidden, size_hidden, nn.Sigmoid()),
-        )
         # final layer
-        self.final_layer = block(size_hidden, self.output_dimension, nn.Sigmoid())
+        self.final_layer = nn.Sequential(
+            nn.Linear(output_size, self.output_dimension),
+            nn.Sigmoid(),
+        )
         self.optimizer = torch.optim.Adam(self.parameters(), lr=0.001)
 
     def init_RuleToIndex(self):
@@ -70,27 +76,12 @@ class RulesPredictor(nn.Module):
         # print("size of x", x.size())
         x = self.IOEmbedder.forward(batch_IOs)
         # print("size of x", x.size())
-        x = self.hidden(x)
+        x = self.latent_encoder(x)
         # print("size of x", x.size())
         # x = torch.mean(x, -2)
         x = self.final_layer(x)
         return x
 
-        # res = []
-        # for x in batch_IOs:
-        #     # print("size of x", x.size())
-        #     x = self.IOEmbedder.forward_IOs(x)
-        #     # print("size of x", x.size())
-        #     x = torch.flatten(x, start_dim = 1)
-        #     # print("size of x", x.size())
-        #     x = self.hidden(x)
-        #     # print("size of x", x.size())
-        #     x = torch.mean(x, -2)
-        #     # print("size of x", x.size())
-        #     x = self.final_layer(x)
-        #     # print("size of x", x.size())
-        #     res.append(x)
-        # return torch.stack(res)
     def reconstruct_grammars(self, batch_predictions):
         '''
         reconstructs the grammars
@@ -101,18 +92,18 @@ class RulesPredictor(nn.Module):
             for S in self.cfg.rules:
                 rules[S] = {}
                 for P in self.cfg.rules[S]:
-                    cpy_P = copy.deepcopy(P) 
+                    cpy_P = copy.deepcopy(P)
                     rules[S][cpy_P] = self.cfg.rules[S][P], \
-                    float(x[self.RuleToIndex[(S, P)]])
+                        float(x[self.RuleToIndex[(S, P)]])
             grammar = PCFG(
-                start = self.cfg.start, 
-                rules = rules, 
-                max_program_depth = self.cfg.max_program_depth,
-                clean = True)
+                start=self.cfg.start,
+                rules=rules,
+                max_program_depth=self.cfg.max_program_depth,
+                clean=True)
             res.append(grammar)
         return res
 
-    def ProgramEncoder(self, program, S = None, tensor = None):
+    def ProgramEncoder(self, program, S=None, tensor=None):
         '''
         Outputs a tensor of dimension the number of transitions in the CFG
         with 1 for the transitions used to derive the program and 
@@ -140,45 +131,45 @@ class RulesPredictor(nn.Module):
     def custom_collate(self, batch):
         return [batch[i][0] for i in range(len(batch))], torch.stack([batch[i][1] for i in range(len(batch))])
 
-    # def custom_collate_2(batch):
-    #     return [batch[i][0] for i in range(len(batch))], [batch[i][1] for i in range(len(batch))]
-
-
 
 class NNDictRulesPredictor(nn.Module):
     '''
     cfg: a cfg template
     IOEncoder: encode inputs and outputs
     IOEmbedder: embeds inputs and outputs
-    size_hidden: size for hidden layers
     '''
-    def __init__(self, 
-        cfg, 
-        IOEncoder,
-        IOEmbedder,
-        ):
+
+    def __init__(self,
+                 cfg,
+                 IOEncoder,
+                 IOEmbedder,
+                 latent_encoder
+                 ):
         super(NNDictRulesPredictor, self).__init__()
 
         self.cfg = cfg
         self.IOEncoder = IOEncoder
         self.IOEmbedder = IOEmbedder
+        self.latent_encoder = latent_encoder
 
         self.loss = lambda batch_grammar, batch_program:\
             - sum(grammar.log_probability_program(grammar.start, program)
                   for grammar, program in zip(batch_grammar, batch_program))
 
+        # Guess output size of NN
         H = IOEncoder.output_dimension * self.IOEmbedder.output_dimension
+        output_size = guess_output_size(latent_encoder, H)
 
         projection_layer = {}
         for S in self.cfg.rules:
             n_productions = len(self.cfg.rules[S])
-            module = nn.Sequential(nn.Linear(H, n_productions),
+            module = nn.Sequential(nn.Linear(output_size, n_productions),
                                    nn.LogSoftmax(-1))
             projection_layer[str(S)] = module
         self.projection_layer = nn.ModuleDict(projection_layer)
         self.optimizer = torch.optim.Adam(self.parameters(), lr=0.1)
-            
-    def ProgramEncoder(self, program): 
+
+    def ProgramEncoder(self, program):
         return program
 
     def forward(self, batch_IOs):
@@ -189,6 +180,7 @@ class NNDictRulesPredictor(nn.Module):
         grammars = []
         for x in batch_IOs:
             x = self.IOEmbedder.forward([x])
+            x = self.latent_encoder(x)
             probabilities = {S: self.projection_layer[format(S)](x)
                              for S in self.cfg.rules}
             rules = {}
@@ -197,18 +189,16 @@ class NNDictRulesPredictor(nn.Module):
                 for j, P in enumerate(self.cfg.rules[S]):
                     cpy_P = copy.deepcopy(P)
                     rules[S][cpy_P] = self.cfg.rules[S][P], \
-                    probabilities[S][0 ,j]
-            grammar = LogProbPCFG(self.cfg.start, 
-                rules, 
-                max_program_depth=self.cfg.max_program_depth)
+                        probabilities[S][0, j]
+            grammar = LogProbPCFG(self.cfg.start,
+                                  rules,
+                                  max_program_depth=self.cfg.max_program_depth)
             grammar.clean()
             grammars.append(grammar)
         return grammars
 
     def custom_collate(self, batch):
         return [batch[i][0] for i in range(len(batch))], torch.stack([batch[i][1] for i in range(len(batch))])
-
-
 
 
 class BigramsPredictor(nn.Module):
@@ -219,19 +209,22 @@ class BigramsPredictor(nn.Module):
     IOEmbedder: embeds inputs and outputs
     size_hidden: size for hidden layers
     '''
-    def __init__(self, 
-        cfg_dictionary,
-        primitive_types,
-        IOEncoder,
-        IOEmbedder,
-        variable_probability=0.2
-        ):
+
+    def __init__(self,
+                 cfg_dictionary,
+                 primitive_types,
+                 IOEncoder,
+                 IOEmbedder,
+                 latent_encoder,
+                 variable_probability=0.2
+                 ):
         super(BigramsPredictor, self).__init__()
 
         self.cfg_dictionary = cfg_dictionary
         self.primitive_types = primitive_types
         self.IOEncoder = IOEncoder
         self.IOEmbedder = IOEmbedder
+        self.latent_encoder = latent_encoder
 
         self.variable_probability = variable_probability
 
@@ -240,21 +233,22 @@ class BigramsPredictor(nn.Module):
                   for grammar, program in zip(batch_grammar, batch_program))
 
         H = IOEncoder.output_dimension * self.IOEmbedder.output_dimension
+        output_size = guess_output_size(latent_encoder, H)
 
         self.symbolToIndex = {
-            symbol: index for index,symbol in enumerate(self.primitive_types.keys())
-            }
+            symbol: index for index, symbol in enumerate(self.primitive_types.keys())
+        }
 
         # IMPORTANT: we do not predict variables!
         self.number_of_primitives = len(self.primitive_types)
-        self.number_of_parents = self.number_of_primitives + 1 # could be None
+        self.number_of_parents = self.number_of_primitives + 1  # could be None
         self.maximum_arguments = max(len(t.arguments())
                                      for t in self.primitive_types.values())
-        self.q_predictor = nn.Linear(H,
-             self.number_of_parents*self.maximum_arguments*self.number_of_primitives)
+        self.q_predictor = nn.Linear(output_size,
+                                     self.number_of_parents*self.maximum_arguments*self.number_of_primitives)
 
         self.optimizer = torch.optim.Adam(self.parameters(), lr=0.1)
-           
+
     def forward(self, batch_IOs):
         """
         batch_IOs is a tensor of size
@@ -263,12 +257,11 @@ class BigramsPredictor(nn.Module):
         returns: list of PCFGs
         """
         x = self.IOEmbedder.forward(batch_IOs)
-        x = self.q_predictor.forward(x).view(-1, 
-            self.number_of_parents, self.maximum_arguments, self.number_of_primitives)
+        x = self.latent_encoder(x)
+        x = self.q_predictor.forward(x).view(-1,
+                                             self.number_of_parents, self.maximum_arguments, self.number_of_primitives)
         x = nn.LogSoftmax(-1)(x)
         return x
-        
-
 
     def reconstruct_grammars(self, batch_predictions, batch_type_requests, tensors=True):
         grammars = []
@@ -308,10 +301,10 @@ class BigramsPredictor(nn.Module):
                 if variables:
                     if tensors:
                         total = sum(np.exp(rules[S][P][1].item())
-                                for P in rules[S] if P not in variables)
+                                    for P in rules[S] if P not in variables)
                     else:
                         total = sum(np.exp(rules[S][P][1])
-                                for P in rules[S] if P not in variables)
+                                    for P in rules[S] if P not in variables)
 
                     var_probability = self.variable_probability
                     if total > 0:
@@ -323,7 +316,8 @@ class BigramsPredictor(nn.Module):
                     else:
                         var_probability = 1
                     # Normalise variable probability
-                    normalised_variable_logpgob = np.log(var_probability / len(variables))
+                    normalised_variable_logpgob = np.log(
+                        var_probability / len(variables))
                     for P in variables:
                         rules[S][P] = rules[S][P][0], normalised_variable_logpgob
 
@@ -334,15 +328,8 @@ class BigramsPredictor(nn.Module):
             grammars.append(grammar)
         return grammars
 
-    def ProgramEncoder(self, program): 
+    def ProgramEncoder(self, program):
         return program
 
     def custom_collate(self, batch):
         return [batch[i][0] for i in range(len(batch))], torch.stack([batch[i][1] for i in range(len(batch))])
-
-
-
-
-
-
-

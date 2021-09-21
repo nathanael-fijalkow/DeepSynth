@@ -12,6 +12,12 @@ from Predictions.embeddings import RNNEmbedding, SimpleEmbedding
 from Predictions.models import RulesPredictor, BigramsPredictor, NNDictRulesPredictor
 
 
+def __block__(input_dim, output_dimension, activation):
+    return torch.nn.Sequential(
+        torch.nn.Linear(input_dim, output_dimension),
+        activation,
+    )
+
 def get_model_name(model) -> str:
     name: str = ""
     if isinstance(model.IOEncoder, FixedSizeEncoding):
@@ -23,11 +29,11 @@ def get_model_name(model) -> str:
     else:
         name += "+rnn"
     if isinstance(model, NNDictRulesPredictor):
-        name += "+local"
+        name += "+nndict_rules"
     elif isinstance(model, RulesPredictor):
-        name += "+global"
+        name += "+rules"
     else:
-        name += "+local_bigram"
+        name += "+bigrams"
     return name
 
 
@@ -82,11 +88,17 @@ def __buildintlist_model(dsl: DSL, max_program_depth: int, nb_arguments_max: int
     ######### MODEL ############
     ############################
 
+    latent_encoder = torch.nn.Sequential(
+        __block__(IOEncoder.output_dimension * IOEmbedder.output_dimension, size_hidden, torch.nn.Sigmoid()),
+        # block(size_hidden, size_hidden, nn.LeakyReLU()),
+        __block__(size_hidden, size_hidden, torch.nn.Sigmoid()),
+    )
+
     model = RulesPredictor(
         cfg=cfg,
         IOEncoder=IOEncoder,
         IOEmbedder=IOEmbedder,
-        size_hidden=size_hidden,
+        latent_encoder=latent_encoder,
     )
 
 
@@ -155,11 +167,18 @@ def __build_generic_model(dsl: DSL, cfg_dictionary: Dict[Type, CFG], nb_argument
         number_layers_RNN=number_layers_RNN,
     )
 
+    latent_encoder = torch.nn.Sequential(
+        __block__(IOEncoder.output_dimension *
+                  IOEmbedder.output_dimension, IOEncoder.output_dimension *
+                  IOEmbedder.output_dimension // 2, torch.nn.ReLU()),
+    )
+
     return BigramsPredictor(
         cfg_dictionary=cfg_dictionary,
         primitive_types={x: x.type for x in dsl.list_primitives},
         IOEncoder=IOEncoder,
         IOEmbedder=IOEmbedder,
+        latent_encoder=latent_encoder
     )
 
 
