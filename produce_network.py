@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 from type_system import Arrow, List, INT, BOOL
 from Predictions.IOencodings import FixedSizeEncoding
-from Predictions.models import GlobalRulesPredictor, LocalBigramsPredictor
+from Predictions.models import RulesPredictor, BigramsPredictor
 from Predictions.dataset_sampler import Dataset
 
 logging_levels = {0:logging.INFO, 1:logging.DEBUG}
@@ -76,10 +76,10 @@ def train(model, dataset):
             # print("batch_program", batch_program.size())
             batch_predictions = model(batch_IOs)
             # print("batch_predictions", batch_predictions.size())
-            if isinstance(model, GlobalRulesPredictor):
+            if isinstance(model, RulesPredictor):
                 loss_value = model.loss(
                     batch_predictions, torch.stack(batch_program))
-            elif isinstance(model, LocalBigramsPredictor):
+            elif isinstance(model, BigramsPredictor):
                 batch_grammars = model.reconstruct_grammars(
                     batch_predictions, batch_requests)
                 loss_value = model.loss(

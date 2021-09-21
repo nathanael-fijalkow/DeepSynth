@@ -170,7 +170,7 @@ IOEmbedder = RNNEmbedding(
 ######### MODEL ############
 ############################
 
-model = GlobalRulesPredictor(
+model = RulesPredictor(
     cfg=deepcoder_cfg,
     IOEncoder=IOEncoder,
     IOEmbedder=IOEmbedder,
@@ -190,7 +190,7 @@ Now we can produce the grammars:
 ```python
 dsl = DSL(semantics, primitive_types)
 batched_grammars = model(batched_examples)
-if isinstance(model, GlobalRulesPredictor):
+if isinstance(model, RulesPredictor):
     batched_grammars = model.reconstruct_grammars(batched_grammars)
 ```
 

@@ -1,5 +1,5 @@
 from type_system import BOOL, INT, STRING, Arrow
-from Predictions.models import GlobalRulesPredictor, LocalBigramsPredictor
+from Predictions.models import RulesPredictor, BigramsPredictor
 from pcfg import PCFG
 from typing import Callable, List, Tuple
 from dsl import DSL
@@ -58,9 +58,9 @@ def task_set2dataset(tasks, model, dsl) -> List[Tuple[str, PCFG, Callable[[Progr
             grammar = model(ex)[0]
         except AssertionError:
             continue
-        if isinstance(model, GlobalRulesPredictor):
+        if isinstance(model, RulesPredictor):
             grammar = model.reconstruct_grammars([grammar])[0]
-        if isinstance(model, LocalBigramsPredictor):
+        if isinstance(model, BigramsPredictor):
             grammar = model.reconstruct_grammars(
                 [grammar], [__get_type_request(examples)], tensors=False)[0]
             grammar = grammar.normalise()

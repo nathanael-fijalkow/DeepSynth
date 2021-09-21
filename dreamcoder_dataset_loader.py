@@ -1,4 +1,4 @@
-from Predictions.models import GlobalRulesPredictor
+from Predictions.models import RulesPredictor
 import glob
 import pickle
 from type_system import BOOL, INT, Arrow, List, Type
@@ -42,7 +42,7 @@ def filter_tasks_for_model(tasks, model) -> typing.List[Tuple[str, Any]]:
     for task in tasks:
         name, examples = task
         type_request: Type = __get_type_request(examples)
-        if isinstance(model, GlobalRulesPredictor) and type_request != Arrow(List(INT), List(INT)):
+        if isinstance(model, RulesPredictor) and type_request != Arrow(List(INT), List(INT)):
             continue
 
         examples = [(i, o) for i, o in examples if len(i[0]) <= model.IOEncoder.size_max and all(

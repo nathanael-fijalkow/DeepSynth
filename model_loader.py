@@ -9,7 +9,7 @@ from dsl import DSL
 from DSL import list, deepcoder, flashfill
 from Predictions.IOencodings import FixedSizeEncoding
 from Predictions.embeddings import RNNEmbedding, SimpleEmbedding
-from Predictions.models import GlobalRulesPredictor, LocalBigramsPredictor, LocalRulesPredictor
+from Predictions.models import RulesPredictor, BigramsPredictor, NNDictRulesPredictor
 
 
 def get_model_name(model) -> str:
@@ -22,16 +22,16 @@ def get_model_name(model) -> str:
         name += "+simple"
     else:
         name += "+rnn"
-    if isinstance(model, LocalRulesPredictor):
+    if isinstance(model, NNDictRulesPredictor):
         name += "+local"
-    elif isinstance(model, GlobalRulesPredictor):
+    elif isinstance(model, RulesPredictor):
         name += "+global"
     else:
         name += "+local_bigram"
     return name
 
 
-def __buildintlist_model(dsl: DSL, max_program_depth: int, nb_arguments_max: int, lexicon: typing.List[int], size_max: int, size_hidden: int, embedding_output_dimension: int, number_layers_RNN: int) -> Tuple[CFG, GlobalRulesPredictor]:
+def __buildintlist_model(dsl: DSL, max_program_depth: int, nb_arguments_max: int, lexicon: typing.List[int], size_max: int, size_hidden: int, embedding_output_dimension: int, number_layers_RNN: int) -> Tuple[CFG, RulesPredictor]:
     type_request = Arrow(List(INT), List(INT))
     cfg = dsl.DSL_to_CFG(
         type_request, max_program_depth=max_program_depth)
@@ -82,7 +82,7 @@ def __buildintlist_model(dsl: DSL, max_program_depth: int, nb_arguments_max: int
     ######### MODEL ############
     ############################
 
-    model = GlobalRulesPredictor(
+    model = RulesPredictor(
         cfg=cfg,
         IOEncoder=IOEncoder,
         IOEmbedder=IOEmbedder,
@@ -93,7 +93,7 @@ def __buildintlist_model(dsl: DSL, max_program_depth: int, nb_arguments_max: int
     return cfg, model
 
 
-def build_dreamcoder_intlist_model(max_program_depth: int = 4, autoload: bool = True) -> Tuple[DSL, CFG, GlobalRulesPredictor]:
+def build_dreamcoder_intlist_model(max_program_depth: int = 4, autoload: bool = True) -> Tuple[DSL, CFG, RulesPredictor]:
     size_max = 10  # maximum number of elements in a list (input or output)
     nb_arguments_max = 1  # maximum number of inputs in an IO
     lexicon = [x for x in range(-30, 30)]  # all elements of a list must be from lexicon
@@ -118,7 +118,7 @@ def build_dreamcoder_intlist_model(max_program_depth: int = 4, autoload: bool = 
     return dreamcoder, dreamcoder_cfg, model
 
 
-def build_deepcoder_intlist_model(max_program_depth: int = 4, autoload: bool = True) -> Tuple[DSL, CFG, GlobalRulesPredictor]:
+def build_deepcoder_intlist_model(max_program_depth: int = 4, autoload: bool = True) -> Tuple[DSL, CFG, RulesPredictor]:
     size_max = 10  # maximum number of elements in a list (input or output)
     nb_arguments_max = 1  # maximum number of inputs in an IO
     # all elements of a list must be from lexicon
@@ -142,7 +142,7 @@ def build_deepcoder_intlist_model(max_program_depth: int = 4, autoload: bool = T
     return deepcoder_dsl, deepcoder_cfg, model
 
 
-def __build_generic_model(dsl: DSL, cfg_dictionary: Dict[Type, CFG], nb_arguments_max: int, lexicon: typing.List[int], size_max: int, size_hidden: int, embedding_output_dimension: int, number_layers_RNN: int) -> LocalBigramsPredictor:
+def __build_generic_model(dsl: DSL, cfg_dictionary: Dict[Type, CFG], nb_arguments_max: int, lexicon: typing.List[int], size_max: int, size_hidden: int, embedding_output_dimension: int, number_layers_RNN: int) -> BigramsPredictor:
     IOEncoder = FixedSizeEncoding(
         nb_arguments_max=nb_arguments_max,
         lexicon=lexicon,
@@ -155,7 +155,7 @@ def __build_generic_model(dsl: DSL, cfg_dictionary: Dict[Type, CFG], nb_argument
         number_layers_RNN=number_layers_RNN,
     )
 
-    return LocalBigramsPredictor(
+    return BigramsPredictor(
         cfg_dictionary=cfg_dictionary,
         primitive_types={x: x.type for x in dsl.list_primitives},
         IOEncoder=IOEncoder,
@@ -163,7 +163,7 @@ def __build_generic_model(dsl: DSL, cfg_dictionary: Dict[Type, CFG], nb_argument
     )
 
 
-def build_deepcoder_generic_model(max_program_depth: int = 4, autoload: bool = True) -> Tuple[DSL, CFG, LocalBigramsPredictor]:
+def build_deepcoder_generic_model(max_program_depth: int = 4, autoload: bool = True) -> Tuple[DSL, CFG, BigramsPredictor]:
     size_max = 10  # maximum number of elements in a list (input or output)
     nb_arguments_max = 1
     # all elements of a list must be from lexicon
@@ -205,7 +205,7 @@ def build_deepcoder_generic_model(max_program_depth: int = 4, autoload: bool = T
     return deepcoder_dsl, cfg_dict, model
 
 
-def build_flashfill_generic_model(max_program_depth: int = 4, autoload: bool = True) -> Tuple[DSL, CFG, LocalBigramsPredictor]:
+def build_flashfill_generic_model(max_program_depth: int = 4, autoload: bool = True) -> Tuple[DSL, CFG, BigramsPredictor]:
     from flashfill_dataset_loader import get_lexicon
     size_max = 10  # maximum number of elements in a list (input or output)
     nb_arguments_max = 3

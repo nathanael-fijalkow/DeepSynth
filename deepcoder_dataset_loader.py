@@ -1,4 +1,4 @@
-from Predictions.models import GlobalRulesPredictor
+from Predictions.models import RulesPredictor
 import json
 from type_system import BOOL, INT, Arrow, List, Type
 from typing import Any, Tuple
@@ -50,7 +50,7 @@ def filter_tasks_for_model(tasks, model) -> typing.List[Tuple[str, Any]]:
         except:
             # Skip tasks where the solution is to always return an empty list
             continue
-        if isinstance(model, GlobalRulesPredictor) and type_request != Arrow(List(INT), List(INT)):
+        if isinstance(model, RulesPredictor) and type_request != Arrow(List(INT), List(INT)):
             continue
 
 

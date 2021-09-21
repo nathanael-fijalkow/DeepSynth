@@ -15,7 +15,7 @@ def block(input_dim, output_dimension, activation):
         activation,
     )
 
-class GlobalRulesPredictor(nn.Module):
+class RulesPredictor(nn.Module):
     '''
     cfg: a cfg template
     IOEncoder: encode inputs and outputs
@@ -28,7 +28,7 @@ class GlobalRulesPredictor(nn.Module):
         IOEmbedder,
         size_hidden,
         ):
-        super(GlobalRulesPredictor, self).__init__()
+        super(RulesPredictor, self).__init__()
 
         self.cfg = cfg
         self.IOEncoder = IOEncoder
@@ -145,7 +145,7 @@ class GlobalRulesPredictor(nn.Module):
 
 
 
-class LocalRulesPredictor(nn.Module):
+class NNDictRulesPredictor(nn.Module):
     '''
     cfg: a cfg template
     IOEncoder: encode inputs and outputs
@@ -157,7 +157,7 @@ class LocalRulesPredictor(nn.Module):
         IOEncoder,
         IOEmbedder,
         ):
-        super(LocalRulesPredictor, self).__init__()
+        super(NNDictRulesPredictor, self).__init__()
 
         self.cfg = cfg
         self.IOEncoder = IOEncoder
@@ -211,7 +211,7 @@ class LocalRulesPredictor(nn.Module):
 
 
 
-class LocalBigramsPredictor(nn.Module):
+class BigramsPredictor(nn.Module):
     '''
     cfg_dictionary: dictionary {type_request: cfg}
     primitive_types: dictionary {primitive: type}
@@ -226,7 +226,7 @@ class LocalBigramsPredictor(nn.Module):
         IOEmbedder,
         variable_probability=0.2
         ):
-        super(LocalBigramsPredictor, self).__init__()
+        super(BigramsPredictor, self).__init__()
 
         self.cfg_dictionary = cfg_dictionary
         self.primitive_types = primitive_types
