@@ -91,7 +91,7 @@ def randomWords(ds, minimum=1, lb=2, ub=4):
     return s
 
 
-def makeTasks():
+def make_synthetic_tasks():
     import random
     random.seed(9)
 
@@ -338,10 +338,8 @@ def load_tasks(folder="flashfill_dataset"):
 
         tasks.append(task)
         cheatingTasks.append(cheat)
-    # for p in tasks:
-    #     add_constants_to_task(p)
 
-    tasks = [ (name, [(["".join(x) for x in xs], "".join(y)) for xs, y in examples]) for name, examples in tasks]
+    tasks = [ (name, [(["".join(x) for x in xs] + [None], "".join(y)) for xs, y in examples]) for name, examples in tasks]
     return [add_constants_to_task(p) for p in tasks]
 
 
@@ -371,7 +369,7 @@ def add_constants_to_task(task):
 
 if __name__ == "__main__":
     challenge = load_tasks("flashfill_dataset")
-    tasks = makeTasks()
+    tasks = make_synthetic_tasks()
     print(len(tasks), "synthetic tasks")
     tasks = []
     for t in tasks + challenge:
@@ -394,7 +392,7 @@ if __name__ == "__main__":
 
     if len(sys.argv) > 1 and "json" in sys.argv[1]:
         import json
-        tasks = makeTasks()
+        tasks = make_synthetic_tasks()
         obj = [t.as_json_dict() for t in tasks]
         json.dump(obj, sys.stdout)
     else:
