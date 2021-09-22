@@ -56,7 +56,8 @@ def task_set2dataset(tasks, model, dsl) -> List[Tuple[str, PCFG, Callable[[Progr
         try:
             ex = [[([i[0]], o) for i, o in examples]]
             grammar = model(ex)[0]
-        except AssertionError:
+        except AssertionError as e:
+            print("experiment_helper.py: task_set2dataset: An error occured while generating a grammar for task:", name, "\n\t", e)
             continue
         if isinstance(model, RulesPredictor):
             grammar = model.reconstruct_grammars([grammar])[0]
