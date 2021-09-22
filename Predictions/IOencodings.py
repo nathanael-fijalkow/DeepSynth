@@ -45,7 +45,7 @@ class FixedSizeEncoding():
         res += self.symbolToIndex["PAD"]
         if len(arg) > self.size_max:
             assert False, \
-                "This input is too long: {}".format(arg)
+                "IOEncodings.py: FixedSizeEncoding: This input is too long: len({})={} > {}".format(arg, len(arg), self.size_max)
         for i, e in enumerate(arg):
             res[2*i] = self.symbolToIndex[e]
             # Boolean flag: the previous value is not padding
@@ -64,7 +64,8 @@ class FixedSizeEncoding():
         inputs, output = IO
         if len(inputs) > self.nb_arguments_max:
             assert False, \
-                "Too many inputs: {} (inputs={})".format(IO, inputs)
+                "IOEncodings.py: FixedSizeEncoding: Too many inputs: len({})={} > {}".format(
+                    inputs, len(inputs), self.nb_arguments_max)
         for i in range(self.nb_arguments_max):
             try:
                 input_ = inputs[i]
@@ -162,7 +163,7 @@ class VariableSizeEncoding():
             size += 1
         if size > self.output_dimension - 2:
             assert False, \
-                "IO too large: ".format(IO)
+                "IOEncodings.py: VariableSizeEncoding: IO too large: {} > {}-2 for {}".format(size, self.output_dimension, IO)
         else:
             for _ in range(self.output_dimension - size - 1):
                 e.append(self.endingIndex)
