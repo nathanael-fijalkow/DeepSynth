@@ -226,8 +226,8 @@ def build_deepcoder_generic_model(max_program_depth: int = 4, autoload: bool = T
 
 def build_flashfill_generic_model(max_program_depth: int = 4, autoload: bool = True) -> Tuple[DSL, CFG, BigramsPredictor]:
     from flashfill_dataset_loader import get_lexicon
-    size_max = 10  # maximum number of elements in a list (input or output)
-    nb_arguments_max = 3
+    size_max = 30  # maximum number of elements in a list/string (input or output)
+    nb_arguments_max = 2
     # all elements of a list must be from lexicon
     lexicon = get_lexicon()
 
