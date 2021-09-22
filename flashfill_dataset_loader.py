@@ -50,7 +50,7 @@ def randomWord(minimum=1, predicate=None):
         observations = {''.join(z)
                         for t in tasks
                         for xs, y in t[1]
-                        for z in list(xs) + [y]}
+                        for z in list(xs[:-1]) + [y]}
 
         def splitMany(s, ds):
             if len(ds) == 0:
