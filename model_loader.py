@@ -1,11 +1,10 @@
-
 import os
 import typing
 import torch
 from type_system import INT, STRING, Arrow, List
 from typing import Dict, Tuple, Type
 from cfg import CFG
-from dsl import DSL
+import dsl
 from DSL import list, deepcoder, flashfill
 from Predictions.IOencodings import FixedSizeEncoding
 from Predictions.embeddings import RNNEmbedding, SimpleEmbedding
@@ -37,7 +36,7 @@ def get_model_name(model) -> str:
     return name
 
 
-def __buildintlist_model(dsl: DSL, max_program_depth: int, nb_arguments_max: int, lexicon: typing.List[int], size_max: int, size_hidden: int, embedding_output_dimension: int, number_layers_RNN: int) -> Tuple[CFG, RulesPredictor]:
+def __buildintlist_model(dsl: dsl.DSL, max_program_depth: int, nb_arguments_max: int, lexicon: typing.List[int], size_max: int, size_hidden: int, embedding_output_dimension: int, number_layers_RNN: int) -> Tuple[CFG, RulesPredictor]:
     type_request = Arrow(List(INT), List(INT))
     cfg = dsl.DSL_to_CFG(
         type_request, max_program_depth=max_program_depth)
@@ -105,7 +104,7 @@ def __buildintlist_model(dsl: DSL, max_program_depth: int, nb_arguments_max: int
     return cfg, model
 
 
-def build_dreamcoder_intlist_model(max_program_depth: int = 4, autoload: bool = True) -> Tuple[DSL, CFG, RulesPredictor]:
+def build_dreamcoder_intlist_model(max_program_depth: int = 4, autoload: bool = True) -> Tuple[dsl.DSL, CFG, RulesPredictor]:
     size_max = 10  # maximum number of elements in a list (input or output)
     nb_arguments_max = 1  # maximum number of inputs in an IO
     lexicon = [x for x in range(-30, 30)]  # all elements of a list must be from lexicon
@@ -116,7 +115,7 @@ def build_dreamcoder_intlist_model(max_program_depth: int = 4, autoload: bool = 
     size_hidden = 64
 
 
-    dreamcoder = DSL(list.semantics, list.primitive_types)
+    dreamcoder = dsl.DSL(list.semantics, list.primitive_types)
 
     dreamcoder_cfg, model = __buildintlist_model(
         dreamcoder, max_program_depth, nb_arguments_max, lexicon, size_max, size_hidden, embedding_output_dimension, number_layers_RNN)
@@ -130,7 +129,7 @@ def build_dreamcoder_intlist_model(max_program_depth: int = 4, autoload: bool = 
     return dreamcoder, dreamcoder_cfg, model
 
 
-def build_deepcoder_intlist_model(max_program_depth: int = 4, autoload: bool = True) -> Tuple[DSL, CFG, RulesPredictor]:
+def build_deepcoder_intlist_model(max_program_depth: int = 4, autoload: bool = True) -> Tuple[dsl.DSL, CFG, RulesPredictor]:
     size_max = 10  # maximum number of elements in a list (input or output)
     nb_arguments_max = 1  # maximum number of inputs in an IO
     # all elements of a list must be from lexicon
@@ -140,7 +139,7 @@ def build_deepcoder_intlist_model(max_program_depth: int = 4, autoload: bool = T
     # only useful for RNNEmbedding
     number_layers_RNN = 1
     size_hidden = 64
-    deepcoder_dsl = DSL(deepcoder.semantics, deepcoder.primitive_types, deepcoder.no_repetitions)
+    deepcoder_dsl = dsl.DSL(deepcoder.semantics, deepcoder.primitive_types, deepcoder.no_repetitions)
 
     deepcoder_cfg, model = __buildintlist_model(
         deepcoder_dsl, max_program_depth, nb_arguments_max, lexicon, size_max, size_hidden, embedding_output_dimension, number_layers_RNN)
@@ -154,7 +153,7 @@ def build_deepcoder_intlist_model(max_program_depth: int = 4, autoload: bool = T
     return deepcoder_dsl, deepcoder_cfg, model
 
 
-def __build_generic_model(dsl: DSL, cfg_dictionary: Dict[Type, CFG], nb_arguments_max: int, lexicon: typing.List[int], size_max: int, size_hidden: int, embedding_output_dimension: int, number_layers_RNN: int) -> BigramsPredictor:
+def __build_generic_model(dsl: dsl.DSL, cfg_dictionary: Dict[Type, CFG], nb_arguments_max: int, lexicon: typing.List[int], size_max: int, size_hidden: int, embedding_output_dimension: int, number_layers_RNN: int) -> BigramsPredictor:
     IOEncoder = FixedSizeEncoding(
         nb_arguments_max=nb_arguments_max,
         lexicon=lexicon,
@@ -182,7 +181,7 @@ def __build_generic_model(dsl: DSL, cfg_dictionary: Dict[Type, CFG], nb_argument
     )
 
 
-def build_deepcoder_generic_model(max_program_depth: int = 4, autoload: bool = True) -> Tuple[DSL, CFG, BigramsPredictor]:
+def build_deepcoder_generic_model(max_program_depth: int = 4, autoload: bool = True) -> Tuple[dsl.DSL, CFG, BigramsPredictor]:
     size_max = 10  # maximum number of elements in a list (input or output)
     nb_arguments_max = 1
     # all elements of a list must be from lexicon
@@ -192,7 +191,7 @@ def build_deepcoder_generic_model(max_program_depth: int = 4, autoload: bool = T
     # only useful for RNNEmbedding
     number_layers_RNN = 1
     size_hidden = 64
-    deepcoder_dsl = DSL(deepcoder.semantics, deepcoder.primitive_types, deepcoder.no_repetitions)
+    deepcoder_dsl = dsl.DSL(deepcoder.semantics, deepcoder.primitive_types, deepcoder.no_repetitions)
 
     deepcoder_dsl.instantiate_polymorphic_types()
     requests = deepcoder_dsl.all_type_requests(nb_arguments_max)
@@ -202,7 +201,7 @@ def build_deepcoder_generic_model(max_program_depth: int = 4, autoload: bool = T
         if any(ground_type.size() >= 3 for ground_type in type_req.list_ground_types()):
             continue
         # Why the try?
-        # Because for request type: int -> list(list(int)) in a DSL without a method to go from int -> list(int)
+        # Because for request type: int -> list(list(int)) in a dsl.DSL without a method to go from int -> list(int)
         # Then there is simply no way to produce the correct output type
         # Thus when we clean the PCFG by removing useless rules, we remove the start symbol thus creating an error
         try:
@@ -224,7 +223,8 @@ def build_deepcoder_generic_model(max_program_depth: int = 4, autoload: bool = T
     return deepcoder_dsl, cfg_dict, model
 
 
-def build_flashfill_generic_model(max_program_depth: int = 4, autoload: bool = True) -> Tuple[DSL, CFG, BigramsPredictor]:
+def build_flashfill_generic_model(max_program_depth: int = 4, autoload: bool = True) -> Tuple[dsl.DSL, CFG, BigramsPredictor]:
+    # Import is done here because it needs additional dependencies
     from flashfill_dataset_loader import get_lexicon
     size_max = 30  # maximum number of elements in a list/string (input or output)
     nb_arguments_max = 2
@@ -235,7 +235,7 @@ def build_flashfill_generic_model(max_program_depth: int = 4, autoload: bool = T
     # only useful for RNNEmbedding
     number_layers_RNN = 1
     size_hidden = 64
-    flashfill_dsl = DSL(flashfill.semantics,
+    flashfill_dsl = dsl.DSL(flashfill.semantics,
                         flashfill.primitive_types, flashfill.no_repetitions)
 
     flashfill_dsl.instantiate_polymorphic_types()
@@ -248,11 +248,11 @@ def build_flashfill_generic_model(max_program_depth: int = 4, autoload: bool = T
         if any(arg != STRING for arg in type_req.arguments()):
             continue
         # Why the try?
-        # Because for request type: int -> list(list(int)) in a DSL without a method to go from int -> list(int)
+        # Because for request type: int -> list(list(int)) in a dsl.DSL without a method to go from int -> list(int)
         # Then there is simply no way to produce the correct output type
         # Thus when we clean the PCFG by removing useless rules, we remove the start symbol thus creating an error
         try:
-            cfg_dict[type_req] = flashfill_dsl.DSL_to_CFG(
+            cfg_dict[type_req] = flashfill_dsl.dsl.DSL_to_CFG(
                 type_req, max_program_depth=max_program_depth)
         except:
             continue
