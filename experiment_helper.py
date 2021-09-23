@@ -24,25 +24,28 @@ def make_program_checker(dsl: DSL, examples) -> Callable[[Program, bool], bool]:
     return checker
 
 
-def make_program_checker_with_constants(dsl: DSL, examples, constants) -> Callable[[Program, bool], bool]:
-    def checker(program: Program, use_cached_evaluator: bool) -> bool:
+def make_program_checker_with_constants(dsl: DSL, examples, constants) -> Callable[[Program, bool], Tuple[bool, Program]]:
+    def checker(program: Program, use_cached_evaluator: bool) -> Tuple[bool, Program]:
         programs = program.make_all_constant_variations(constants)
         for program in programs:
+            failed = False
             if use_cached_evaluator:
                 for i, example in enumerate(examples):
                     input, output = example
                     out = program.eval(dsl, input, i)
                     if output != out:
+                        failed = True
                         break
-                return True
             else:
                 for example in examples:
                     input, output = example
                     out = program.eval_naive(dsl, input)
                     if output != out:
+                        failed = True
                         break
-                return True
-        return False
+            if not failed:
+                return True, program
+        return False, None
     return checker
 
 def task_set2dataset(tasks, model, dsl) -> List[Tuple[str, PCFG, Callable[[Program, bool], bool]]]:
