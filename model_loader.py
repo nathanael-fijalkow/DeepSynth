@@ -252,7 +252,7 @@ def build_flashfill_generic_model(max_program_depth: int = 4, autoload: bool = T
         # Then there is simply no way to produce the correct output type
         # Thus when we clean the PCFG by removing useless rules, we remove the start symbol thus creating an error
         try:
-            cfg_dict[type_req] = flashfill_dsl.dsl.DSL_to_CFG(
+            cfg_dict[type_req] = flashfill_dsl.DSL_to_CFG(
                 type_req, max_program_depth=max_program_depth)
         except:
             continue
