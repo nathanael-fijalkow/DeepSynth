@@ -86,7 +86,7 @@ def train(model, dataset):
                     batch_grammars, batch_program)
             loss_value.backward()
             model.optimizer.step()
-            print("minibatch: {}\t loss: {}".format(i, float(loss_value)))
+            print("\tminibatch: {}\t loss: {} metrics: {}".format(i, float(loss_value), model.metrics(loss=float(loss_value), batch_size=batch_size)))
 
         print("epoch: {}\t loss: {}".format(epoch, float(loss_value)))
         torch.save(model.state_dict(), savename)

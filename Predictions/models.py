@@ -55,6 +55,9 @@ class RulesPredictor(nn.Module):
         )
         self.optimizer = torch.optim.Adam(self.parameters(), lr=0.001)
 
+    def metrics(self, **kwargs):
+        return {}
+
     def init_RuleToIndex(self):
         self.output_dimension = 0
 
@@ -169,6 +172,9 @@ class NNDictRulesPredictor(nn.Module):
         self.projection_layer = nn.ModuleDict(projection_layer)
         self.optimizer = torch.optim.Adam(self.parameters(), lr=0.1)
 
+    def metrics(self, loss: float, batch_size: int, **kwargs):
+        return {"average probability": np.exp(- loss / batch_size)}
+
     def ProgramEncoder(self, program):
         return program
 
@@ -248,6 +254,10 @@ class BigramsPredictor(nn.Module):
                                      self.number_of_parents*self.maximum_arguments*self.number_of_primitives)
 
         self.optimizer = torch.optim.Adam(self.parameters(), lr=0.1)
+
+    def metrics(self, loss: float, batch_size: int, **kwargs) :
+        return {"average probability": np.exp(- loss / batch_size)}
+
 
     def forward(self, batch_IOs):
         """
