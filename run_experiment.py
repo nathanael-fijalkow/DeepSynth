@@ -28,7 +28,7 @@ logging_levels = {0: logging.INFO, 1: logging.DEBUG}
 verbosity = 0
 logging.basicConfig(format='%(message)s', level=logging_levels[verbosity])
 timeout = 100
-total_number_programs = 1_000_000
+total_number_programs = 100_000_000
 # Set to False to disable bottom cached evaluation for heap search
 use_heap_search_cached_eval = True 
 
@@ -103,6 +103,8 @@ def run_algorithm(is_correct_program: Callable[[Program, bool], bool], pcfg: PCF
         evaluation_time -= time.perf_counter()
         found = is_correct_program(program_r, cached_eval)
         evaluation_time += time.perf_counter()
+        if not isinstance(found, bool):
+            found, program = found
 
         if nb_programs % 100_000 == 0:
             logging.debug('tested {} programs'.format(nb_programs))
@@ -113,7 +115,7 @@ def run_algorithm(is_correct_program: Callable[[Program, bool], bool], pcfg: PCF
             # logging.debug("[SEARCH TIME]: %s" % search_time)
             # logging.debug("[EVALUATION TIME]: %s" % evaluation_time)
             # logging.debug("[TOTAL TIME]: %s" % (evaluation_time + search_time))
-            return program, search_time, evaluation_time, nb_programs, cumulative_probability, probability
+            return program_r, search_time, evaluation_time, nb_programs, cumulative_probability, probability
 
     # logging.debug("\nNot found")
     # logging.debug('[NUMBER OF PROGRAMS]: %s' % nb_programs)
@@ -250,6 +252,8 @@ def run_algorithm_parallel(is_correct_program: Callable[[Program, bool], bool], 
             t = -time.perf_counter()
             found = is_correct_program(program, cached_eval)
             t += time.perf_counter()
+            if not isinstance(found, bool):
+                found, program = found
             data_collector.add_evaluation_data.remote(i, t)
             return found
         return evaluate
