@@ -255,6 +255,8 @@ class BasicPrimitive(Program):
         """
         representation without type
         """
+        if self.is_a_constant and self.constant_evaluation:
+            return format(self.constant_evaluation)
         return format(self.primitive)
 
     def eval(self, dsl, environment, i):
