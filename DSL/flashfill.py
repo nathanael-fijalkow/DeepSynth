@@ -25,29 +25,38 @@ primitive_types = {
 }
 
 def indexof(string1, string2) -> int:
-  match = re.search(string1, string2)
-  if match:
-    match.start()
-  else:
-    -1
+  try:
+    match = re.search(string1, string2)
+    if match:
+      return match.start()
+    else:
+      return -1
+  except:
+    return -1
+
+def _replace_(string1, string2, string3):
+  try:
+    return re.sub(string1, string2, string3)
+  except:
+    return None
 
 semantics = {
-  '++' : lambda string1, string2: string1 + string2,
-  'replace'  : lambda string1, string2, string3: re.sub(string1, string2, string3),
-  'at' : lambda string1, int1: string1[int1] ,
+  '++' : lambda string1: lambda string2: string1 + string2,
+  'replace': lambda string1: lambda string2: lambda string3: _replace_(string1, string2, string3),
+  'at' : lambda string1: lambda int1: string1[int1] ,
   'int2str' : lambda int1: str(int1),
-  'str.ite'  : lambda bool1, string1, string2: string1 if bool1 else string2,
-  'substr' : lambda string1, int1, int2: string1[int1:int2],
-  '+' : lambda int1, int2: int1 + int2,
-  '-'  : lambda int1, int2: int1 - int2,
+  'str.ite'  : lambda bool1: lambda string1: lambda string2: string1 if bool1 else string2,
+  'substr' : lambda string1: lambda int1: lambda int2: string1[int1:int2],
+  '+' : lambda int1: lambda int2: int1 + int2,
+  '-'  : lambda int1: lambda int2: int1 - int2,
   'len' : lambda string1: len(string1),
   'str2int' : lambda string1: int(string1),
-  'int.ite'  : lambda bool1, int1, int2: int1 if bool1 else int2,
+  'int.ite'  : lambda bool1: lambda int1: lambda int2: int1 if bool1 else int2,
   'indexof' : lambda string1: lambda string2: indexof(string1, string2),
   '=': lambda string1: lambda string2: string1 == string2,
-  'prefixof' : lambda string1, string2: string2.startswith(string1),
-  'suffixof'  : lambda string1, string2: string2.endswith(string1),
-  'contains' : lambda string1, string2: string1 in string2,
+  'prefixof' : lambda string1: lambda string2: string2.startswith(string1),
+  'suffixof'  : lambda string1: lambda string2: string2.endswith(string1),
+  'contains' : lambda string1: lambda string2: string1 in string2,
   'constant' : None
 }
 
