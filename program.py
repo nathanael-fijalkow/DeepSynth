@@ -123,7 +123,7 @@ class Variable(Program):
             result = index(environment, self.variable)
             self.evaluation[i] = result
             return result
-        except (IndexError, ValueError, TypeError):
+        except (AttributeError, IndexError, ValueError, TypeError):
             self.evaluation[i] = None
             return None
 
@@ -131,7 +131,7 @@ class Variable(Program):
         try:
             result = index(environment, self.variable)
             return result
-        except (IndexError, ValueError, TypeError):
+        except (AttributeError, IndexError, ValueError, TypeError):
             return None
 
     def is_constant(self):
@@ -160,9 +160,7 @@ class Function(Program):
 
     def eval(self, dsl, environment, i):
         if i in self.evaluation:
-            # logging.debug('Already evaluated')
             return self.evaluation[i]
-        # logging.debug('Not yet evaluated')
         try:
             if len(self.arguments) == 0:
                 return self.function.eval(dsl, environment, i)
@@ -176,7 +174,7 @@ class Function(Program):
                     result = result(evaluated_arg)
                 self.evaluation[i] = result
                 return result
-        except (IndexError, ValueError, TypeError):
+        except (AttributeError, IndexError, ValueError, TypeError):
             self.evaluation[i] = None
             return None
 
@@ -193,7 +191,7 @@ class Function(Program):
                 for evaluated_arg in evaluated_arguments:
                     result = result(evaluated_arg)
                 return result
-        except (IndexError, ValueError, TypeError):
+        except (AttributeError, IndexError, ValueError, TypeError):
             return None
 
     def is_constant(self):
@@ -229,7 +227,7 @@ class Lambda(Program):
             result = lambda x: self.body.eval(dsl, (x, environment), i)
             self.evaluation[i] = result
             return result
-        except (IndexError, ValueError, TypeError):
+        except (AttributeError, IndexError, ValueError, TypeError):
             self.evaluation[i] = None
             return None
 
@@ -237,7 +235,7 @@ class Lambda(Program):
         try:
             result = lambda x: self.body.eval_naive(dsl, (x, environment))
             return result
-        except (IndexError, ValueError, TypeError):
+        except (AttributeError, IndexError, ValueError, TypeError):
             return None
 
 class BasicPrimitive(Program):
@@ -300,7 +298,7 @@ class New(Program):
             result = self.body.eval(dsl, environment, i)
             self.evaluation[i] = result
             return result
-        except (IndexError, ValueError, TypeError):
+        except (AttributeError, IndexError, ValueError, TypeError):
             self.evaluation[i] = None
             return None
 
@@ -308,7 +306,7 @@ class New(Program):
         try:
             result = self.body.eval_naive(dsl, environment)
             return result
-        except (IndexError, ValueError, TypeError):
+        except (AttributeError, IndexError, ValueError, TypeError):
             return None
 
     def is_constant(self):
