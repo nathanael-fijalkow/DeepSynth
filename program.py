@@ -244,7 +244,7 @@ class BasicPrimitive(Program):
         self.primitive = primitive
         # assert isinstance(type_, Type)
         self.type = type_
-        self.is_a_constant = not isinstance(type_, Arrow)
+        self.is_a_constant = not isinstance(type_, Arrow) and primitive.startswith("constant")
         self.constant_evaluation = constant_evaluation
         self.hash = hash(primitive) + self.type.hash
 
