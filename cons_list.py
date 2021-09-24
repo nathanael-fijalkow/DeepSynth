@@ -1,13 +1,20 @@
 # list = None | (value, list)
 
 def index(cons_list, i):
+    if isinstance(cons_list, list):
+        return cons_list[i]
+    else:
+        return __index_tuple__(cons_list, i)
+
+
+def __index_tuple__(cons_list, i):
     try:
-        (value, next_const_list) = cons_list
-        if i == 0: 
+        value, next_const_list = cons_list
+        if i == 0:
             return value
         else:
-            return index(next_const_list, i-1)
-    except:
+            return __index_tuple__(next_const_list, i-1)
+    except ValueError as e:
         print(f"cons_list.py: cons_list is empty at i={i}!")
         return None
 
