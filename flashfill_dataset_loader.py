@@ -1,5 +1,4 @@
 import random
-from type_system import STRING
 
 
 def lcs(u, v):
@@ -363,6 +362,24 @@ def add_constants_to_task(task):
 
         constants = [g for g, f in guesses.items()
                                 if f >= T]
+
+    # Custom addition to constants
+    # We add all characters that are in all input or in all outputs
+    all_i = [list(examples[0][0][i])
+             for i in range(len(examples[0][0])) if examples[0][0][i] is not None]
+    all_o = list(examples[0][1])
+    for i, o in examples:
+        for l in all_o[:]:
+            if not l in o:
+                all_o.remove(l)
+        for num in range(len(all_i)):
+            for l in all_i[num][:]:
+                if l not in i[num]:
+                    all_i[num].remove(l)
+    added = all_o
+    for l in all_i:
+        added += l
+    constants = list(set(added))
     return name, examples, constants
 
 
