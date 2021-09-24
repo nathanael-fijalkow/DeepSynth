@@ -223,7 +223,7 @@ def build_deepcoder_generic_model(max_program_depth: int = 4, autoload: bool = T
     return deepcoder_dsl, cfg_dict, model
 
 
-def build_flashfill_generic_model(max_program_depth: int = 4, autoload: bool = True) -> Tuple[dsl.DSL, CFG, BigramsPredictor]:
+def build_flashfill_generic_model(max_program_depth: int = 7, autoload: bool = True) -> Tuple[dsl.DSL, CFG, BigramsPredictor]:
     # Import is done here because it needs additional dependencies
     from flashfill_dataset_loader import get_lexicon
     size_max = 30  # maximum number of elements in a list/string (input or output)
