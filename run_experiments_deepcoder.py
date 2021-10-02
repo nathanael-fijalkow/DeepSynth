@@ -1,13 +1,13 @@
 import torch
 from experiment_helper import task_set2dataset
-from model_loader import build_deepcoder_intlist_model, get_model_name
+from model_loader import build_deepcoder_generic_model, get_model_name
 import csv
 import os
 
 from run_experiment import gather_data, list_algorithms
 from deepcoder_dataset_loader import filter_tasks_for_model, load_tasks
 
-subset = "deepcoder_dataset/T=1_all.json"
+subset = "deepcoder_dataset/T=3_test.json"
 datataset_name = "deepcoder"
 save_folder = "."
 
@@ -20,7 +20,7 @@ if "/" in subset_name:
 tasks = load_tasks(subset)
 print("Loaded", len(tasks), "tasks")
 
-dsl, cfg, model = build_deepcoder_intlist_model()
+dsl, cfg, model = build_deepcoder_generic_model()
 tasks = filter_tasks_for_model(tasks, model)
 print("Remaining tasks after filter:", len(tasks), "tasks")
 dataset = task_set2dataset(tasks, model, dsl)
