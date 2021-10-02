@@ -194,19 +194,12 @@ def build_deepcoder_generic_model(max_program_depth: int = 4, autoload: bool = T
     deepcoder_dsl = dsl.DSL(deepcoder.semantics, deepcoder.primitive_types, deepcoder.no_repetitions)
 
     deepcoder_dsl.instantiate_polymorphic_types()
-    requests = deepcoder_dsl.all_type_requests(nb_arguments_max)
+    requests = [Arrow(List(INT), List(INT)), Arrow(List(INT), INT)]
     cfg_dict = {}
     for type_req in requests:
-        # Skip if it contains a list list
-        if any(ground_type.size() >= 3 for ground_type in type_req.list_ground_types()):
-            continue
-        # Why the try?
-        # Because for request type: int -> list(list(int)) in a dsl.DSL without a method to go from int -> list(int)
-        # Then there is simply no way to produce the correct output type
-        # Thus when we clean the PCFG by removing useless rules, we remove the start symbol thus creating an error
         try:
-            cfg_dict[type_req] = deepcoder_dsl.DSL_to_CFG(
-                type_req, max_program_depth=max_program_depth)
+            cfg_dict[type_req] = deepcoder_dsl.DSL_to_CFG(type_req,
+                 max_program_depth=max_program_depth)
         except:
             continue
     print("Requests:", cfg_dict.keys())
