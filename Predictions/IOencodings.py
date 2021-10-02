@@ -41,6 +41,8 @@ class FixedSizeEncoding():
         '''
         encodes a single list (representing an input or an output)
         '''
+        if isinstance(arg, int):
+            arg = [arg]
         res = torch.zeros(2*self.size_max, dtype=torch.long)
         res += self.symbolToIndex["PAD"]
         if len(arg) > self.size_max:
