@@ -54,8 +54,8 @@ def filter_tasks_for_model(tasks, model) -> typing.List[Tuple[str, Any]]:
             continue
 
 
-        examples = [(i, o) for i, o in examples if len(i[0]) <= model.IOEncoder.size_max and all(
-            [el in model.IOEncoder.symbolToIndex for el in i[0]]) and all([el in model.IOEncoder.symbolToIndex for el in o])]
+        examples = [(i, o) for i, o in examples if (len(i[0]) <= model.IOEncoder.size_max and all(
+            [el in model.IOEncoder.symbolToIndex for el in i[0]])) and ((isinstance(o, int) and o in model.IOEncoder.symbolToIndex) or all([el in model.IOEncoder.symbolToIndex for el in o]))]
         if len(examples) == 0:
             continue
 
