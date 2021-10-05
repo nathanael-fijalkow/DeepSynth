@@ -1,11 +1,17 @@
 from Predictions.models import RulesPredictor
 import json
+from program import BasicPrimitive, Function, Variable
 from type_system import BOOL, INT, Arrow, List, Type
 from typing import Any, Tuple
 import typing
+from DSL import deepcoder
+import dsl
 
-def load_tasks(file: str) -> typing.List[Tuple[str,Any]]:
+my_dsl = dsl.DSL(deepcoder.semantics, deepcoder.primitive_types, deepcoder.no_repetitions)
+
+def load_tasks(file: str) -> Tuple[typing.List[Tuple[str,Any]], set]:
     tasks = []
+    all_types = set()
     with open(file, "r") as fd:
         raw_tasks = json.load(fd)
         for raw_task in raw_tasks:
@@ -13,28 +19,45 @@ def load_tasks(file: str) -> typing.List[Tuple[str,Any]]:
             raw_examples = raw_task["examples"]
             examples = [((raw_example["inputs"][0], None), raw_example["output"])
                         for raw_example in raw_examples]
-            tasks.append((name, examples))
-    return tasks
 
-def __get_type(el, fallback=None):
-    if isinstance(el, bool):
-        return BOOL
-    elif isinstance(el, int):
-        return INT
-    elif isinstance(el, list):
-        if len(el) > 0:
-            return List(__get_type(el[0]))
-        else:
-            return __get_type(fallback[0], fallback[1:])
-    elif isinstance(el, tuple):
-        assert el[-1] == None
-        return __get_type(el[0], el[1:-1])
-    assert False, f"Unknown type for:{el}"
+            prog, type_request = __str2prog(name)
+            tasks.append((prog, examples))
+            all_types.add(type_request)
+
+    return tasks, all_types
 
 
-def __get_type_request(examples):
-    input, output = examples[0]
-    return Arrow(__get_type(input[0], [i[0] for i, _ in examples[1:]]), __get_type(output, [o for _, o in examples[1:]]))
+def __str2prog(s: str):
+    parts = s.split("|")
+    stack = []
+    var = 0
+    type_request = None
+    for part in parts:
+        subparts = part.split(",")
+        name = subparts.pop(0)
+        if name == "LIST":
+            stack.append(Variable(var, List(INT)))
+            var += 1
+            if var == 1:
+                type_request = List(INT)
+            else:
+                type_request = Arrow(type_request, List(INT))
+            continue
+        if name == "INT":
+            stack.append(Variable(var, INT))
+            var += 1
+            if var == 1:
+                type_request = INT
+            else:
+                type_request = Arrow(type_request, INT)
+            continue
+        if name not in deepcoder.primitive_types:
+            name = name + "[" + subparts.pop(0) + "]"
+        primitive = BasicPrimitive(name, deepcoder.primitive_types[name])
+        targets = [int(x) for x in subparts]
+        arguments = [stack[x] for x in targets]
+        stack.append(Function(primitive, arguments, type_=primitive.type.returns()))
+    return stack[-1], Arrow(type_request, stack[-1].type)
 
 
 def filter_tasks_for_model(tasks, model) -> typing.List[Tuple[str, Any]]:
@@ -45,11 +68,7 @@ def filter_tasks_for_model(tasks, model) -> typing.List[Tuple[str, Any]]:
         # Remove tasks that return null
         if any(o is None for _, o in examples):
             continue
-        try:
-            type_request: Type = __get_type_request(examples)
-        except:
-            # Skip tasks where the solution is to always return an empty list
-            continue
+        type_request: Type = name.type
         if isinstance(model, RulesPredictor) and type_request != Arrow(List(INT), List(INT)):
             continue
 
