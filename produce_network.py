@@ -3,7 +3,8 @@ import logging
 import argparse
 import matplotlib.pyplot as plt
 
-from type_system import Arrow, List, INT, BOOL
+import deepcoder_dataset_loader
+from type_system import Arrow, List, INT
 from Predictions.IOencodings import FixedSizeEncoding
 from Predictions.models import RulesPredictor, BigramsPredictor
 from Predictions.dataset_sampler import Dataset
@@ -40,7 +41,8 @@ if dataset_name == "dreamcoder":
     cur_dsl, cfg, model = build_dreamcoder_intlist_model()
 elif dataset_name == "deepcoder":
     if type_request is None:
-        cur_dsl, cfg_dict, model = build_deepcoder_generic_model()
+        _, type_requests = deepcoder_dataset_loader.load_tasks("./deepcoder_dataset/T=3_test.json")
+        cur_dsl, cfg_dict, model = build_deepcoder_generic_model(type_requests)
     else:
         cur_dsl, cfg, model = build_deepcoder_intlist_model()
 elif dataset_name == "flashfill":

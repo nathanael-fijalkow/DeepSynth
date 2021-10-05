@@ -1,8 +1,8 @@
 import os
 import typing
 import torch
-from type_system import INT, STRING, Arrow, List
-from typing import Dict, Tuple, Type
+from type_system import INT, STRING, Arrow, List, Type
+from typing import Dict, Set, Tuple
 from cfg import CFG
 import dsl
 from DSL import list, deepcoder, flashfill
@@ -181,7 +181,7 @@ def __build_generic_model(dsl: dsl.DSL, cfg_dictionary: Dict[Type, CFG], nb_argu
     )
 
 
-def build_deepcoder_generic_model(max_program_depth: int = 4, autoload: bool = True) -> Tuple[dsl.DSL, CFG, BigramsPredictor]:
+def build_deepcoder_generic_model(types: Set[Type], max_program_depth: int = 4, autoload: bool = True) -> Tuple[dsl.DSL, CFG, BigramsPredictor]:
     size_max = 10  # maximum number of elements in a list (input or output)
     nb_arguments_max = 1
     # all elements of a list must be from lexicon
@@ -194,14 +194,10 @@ def build_deepcoder_generic_model(max_program_depth: int = 4, autoload: bool = T
     deepcoder_dsl = dsl.DSL(deepcoder.semantics, deepcoder.primitive_types, deepcoder.no_repetitions)
 
     deepcoder_dsl.instantiate_polymorphic_types()
-    requests = [Arrow(List(INT), List(INT)), Arrow(List(INT), INT)]
     cfg_dict = {}
-    for type_req in requests:
-        try:
-            cfg_dict[type_req] = deepcoder_dsl.DSL_to_CFG(type_req,
+    for type_req in types:
+        cfg_dict[type_req] = deepcoder_dsl.DSL_to_CFG(type_req,
                  max_program_depth=max_program_depth)
-        except:
-            continue
     print("Requests:", cfg_dict.keys())
 
     model = __build_generic_model(

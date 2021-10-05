@@ -17,10 +17,10 @@ subset_name = subset.replace(".json", "")
 if "/" in subset_name:
     subset_name = subset_name[subset_name.rfind("/") + 1:]
 
-tasks = load_tasks(subset)
+tasks, types = load_tasks(subset)
 print("Loaded", len(tasks), "tasks")
 
-dsl, cfg, model = build_deepcoder_generic_model()
+dsl, cfg, model = build_deepcoder_generic_model(types)
 tasks = filter_tasks_for_model(tasks, model)
 print("Remaining tasks after filter:", len(tasks), "tasks")
 dataset = task_set2dataset(tasks, model, dsl)
