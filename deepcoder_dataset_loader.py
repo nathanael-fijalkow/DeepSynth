@@ -31,25 +31,19 @@ def __str2prog(s: str):
     parts = s.split("|")
     stack = []
     var = 0
-    type_request = None
+    type_stack = []
     for part in parts:
         subparts = part.split(",")
         name = subparts.pop(0)
         if name == "LIST":
             stack.append(Variable(var, List(INT)))
             var += 1
-            if var == 1:
-                type_request = List(INT)
-            else:
-                type_request = Arrow(type_request, List(INT))
+            type_stack.append(List(INT))
             continue
         if name == "INT":
             stack.append(Variable(var, INT))
             var += 1
-            if var == 1:
-                type_request = INT
-            else:
-                type_request = Arrow(type_request, INT)
+            type_stack.append(INT)
             continue
         if name not in deepcoder.primitive_types:
             name = name + "[" + subparts.pop(0) + "]"
@@ -57,7 +51,10 @@ def __str2prog(s: str):
         targets = [int(x) for x in subparts]
         arguments = [stack[x] for x in targets]
         stack.append(Function(primitive, arguments, type_=primitive.type.returns()))
-    return stack[-1], Arrow(type_request, stack[-1].type)
+    type_request = stack[-1].type
+    while type_stack:
+        type_request = Arrow(type_stack.pop(), type_request)
+    return stack[-1], type_request
 
 
 def filter_tasks_for_model(tasks, model) -> typing.List[Tuple[str, Any]]:
