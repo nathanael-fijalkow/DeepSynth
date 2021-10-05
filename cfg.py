@@ -1,8 +1,6 @@
 import random
 import numpy as np
 
-from type_system import Type, PolymorphicType, PrimitiveType, Arrow, List, UnknownType, INT, BOOL
-from program import Program, Function, Variable, BasicPrimitive, New
 from pcfg_logprob import LogProbPCFG
 from pcfg import PCFG
 
@@ -30,7 +28,7 @@ class CFG:
         if clean:
             self.remove_non_productive()
             self.remove_non_reachable()
-                
+            
     def remove_non_productive(self):
         '''
         remove non-terminals which do not produce programs
@@ -39,7 +37,7 @@ class CFG:
         for S in reversed(self.rules):
             for P in self.rules[S]:
                 args_P = self.rules[S][P]
-                if all([arg in new_rules for arg in args_P]):
+                if all(arg in new_rules for arg in args_P):
                     if S not in new_rules:
                         new_rules[S] = {}
                     new_rules[S][P] = self.rules[S][P]
