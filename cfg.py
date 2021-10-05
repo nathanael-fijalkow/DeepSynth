@@ -78,11 +78,11 @@ class CFG:
 
     def __str__(self):
         s = "Print a CFG\n"
-        s += "start: {}\n".str(self.start)
+        s += "start: {}\n".format(self.start)
         for S in reversed(self.rules):
-            s += '#\n {}\n'.str(S)
+            s += '#\n {}\n'.format(S)
             for P in self.rules[S]:
-                s += '   {} - {}: {}\n'.str(P, P.type, self.rules[S][P])
+                s += '   {} - {}: {}\n'.format(P, P.type, self.rules[S][P])
         return s
 
     def Q_to_LogProbPCFG(self, Q):
