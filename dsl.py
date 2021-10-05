@@ -203,4 +203,5 @@ class DSL:
             start=(return_type, None, 0),
             rules=rules,
             max_program_depth=max_program_depth,
+            clean=True
         )
