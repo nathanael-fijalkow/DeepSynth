@@ -130,6 +130,6 @@ def __get_type__(el) -> Type:
 def __get_type_request(examples):
     input, output = examples[0]
     type_req = __get_type__(output)
-    for el in input[:-1]:
+    for el in input[:-1][::-1]:
         type_req = Arrow(__get_type__(el), type_req)
     return type_req
