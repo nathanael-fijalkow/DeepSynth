@@ -198,7 +198,7 @@ def build_deepcoder_generic_model(types: Set[Type], max_program_depth: int = 4, 
     for type_req in types:
         cfg_dict[type_req] = deepcoder_dsl.DSL_to_CFG(type_req,
                  max_program_depth=max_program_depth)
-    print("Requests:", cfg_dict.keys())
+    print("Requests:", "\n\t" + "\n\t".join(map(str, cfg_dict.keys())))
 
     model = __build_generic_model(
         deepcoder_dsl, cfg_dict, nb_arguments_max, lexicon, size_max, size_hidden, embedding_output_dimension, number_layers_RNN)
