@@ -7,18 +7,18 @@ from dsl import DSL
 from program import Program
 
 def make_program_checker(dsl: DSL, examples) -> Callable[[Program, bool], bool]:
-    def checker(program: Program, use_cached_evaluator: bool) -> bool:
+    def checker(prog: Program, use_cached_evaluator: bool) -> bool:
         if use_cached_evaluator:
             for i, example in enumerate(examples):
                 input, output = example
-                out = program.eval(dsl, input, i)
+                out = prog.eval(dsl, input, i)
                 if output != out:
                     return False
             return True
         else:
             for example in examples:
                 input, output = example
-                out = program.eval_naive(dsl, input)
+                out = prog.eval_naive(dsl, input)
                 if output != out:
                     return False
             return True
@@ -26,26 +26,26 @@ def make_program_checker(dsl: DSL, examples) -> Callable[[Program, bool], bool]:
 
 
 def make_program_checker_with_constants(dsl: DSL, examples, constants) -> Callable[[Program, bool], Tuple[bool, Program]]:
-    def checker(program: Program, use_cached_evaluator: bool) -> Tuple[bool, Program]:
-        programs = program.make_all_constant_variations(constants)
-        for program in programs:
+    def checker(prog: Program, use_cached_evaluator: bool) -> Tuple[bool, Program]:
+        programs = prog.make_all_constant_variations(constants)
+        for fixed_prog in programs:
             failed = False
             if use_cached_evaluator:
                 for i, example in enumerate(examples):
                     input, output = example
-                    out = program.eval(dsl, input, i)
+                    out = fixed_prog.eval(dsl, input, i)
                     if output != out:
                         failed = True
                         break
             else:
                 for example in examples:
                     input, output = example
-                    out = program.eval_naive(dsl, input)
+                    out = fixed_prog.eval_naive(dsl, input)
                     if output != out:
                         failed = True
                         break
             if not failed:
-                return True, program
+                return True, fixed_prog
         return False, None
     return checker
 
