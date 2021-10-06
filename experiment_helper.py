@@ -77,6 +77,7 @@ def task_set2dataset(tasks, model, dsl: DSL) -> List[Tuple[str, PCFG, Callable[[
 
 def filter_examples(examples, nb_arguments_max, max_list_size, lexicon, verbose=False):
     filtered_examples = []
+    one_output_is_nonempty = False
     for i, o in examples:
 
         if len(i) - 1 > nb_arguments_max:
@@ -115,8 +116,12 @@ def filter_examples(examples, nb_arguments_max, max_list_size, lexicon, verbose=
             if verbose:
                 print("\toutput not in lexicon:", o)
             continue
+        if not hasattr(o, "__len__") or len(o) > 0:
+            one_output_is_nonempty = True
         filtered_examples.append((i, o))
-    return filtered_examples   
+    if one_output_is_nonempty:
+        return filtered_examples   
+    return []
 
 
 def __get_type__(el) -> Type:
