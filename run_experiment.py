@@ -98,18 +98,18 @@ def run_algorithm(is_correct_program: Callable[[Program, bool], bool], pcfg: PCF
         cumulative_probability += probability
         # logging.debug('probability: %s' %
         #               probability)
-
         # Evaluation of the program
         evaluation_time -= time.perf_counter()
         found = is_correct_program(program_r, cached_eval)
         evaluation_time += time.perf_counter()
-        if not isinstance(found, bool):
-            found, program = found
+        # if not isinstance(found, bool):
+        #     found, program = found
 
         if nb_programs % 100_000 == 0:
             logging.debug('tested {} programs'.format(nb_programs))
 
         if found:
+            # print("\tprogram found=", program_r)
             # logging.debug("\nSolution found: %s" % program)
             # logging.debug('[NUMBER OF PROGRAMS]: %s' % nb_programs)
             # logging.debug("[SEARCH TIME]: %s" % search_time)
@@ -122,6 +122,9 @@ def run_algorithm(is_correct_program: Callable[[Program, bool], bool], pcfg: PCF
     # logging.debug("[SEARCH TIME]: %s" % search_time)
     # logging.debug("[EVALUATION TIME]: %s" % evaluation_time)
     # logging.debug("[TOTAL TIME]: %s" % (evaluation_time + search_time))
+    # print("\tratio s/(s+e)=", search_time / (search_time + evaluation_time))
+    # print("\tNot found after", nb_programs, "programs\n\tcumulative probability=",
+        #   cumulative_probability, "\n\tlast probability=", probability)
     return None, search_time, evaluation_time, nb_programs, cumulative_probability, probability
 
 def insert_prefix(prefix, prog):
@@ -317,6 +320,10 @@ def gather_data(dataset: typing.List[Tuple[str, PCFG, Callable]], algo_index: in
     for task_name, pcfg, is_correct_program in dataset:
         logging.debug("## Task:", task_name)
         data = run_algorithm(is_correct_program, pcfg, algo_index)
+        if isinstance(task_name, Program):
+            prob = pcfg.probability_program(pcfg.start, task_name)
+            assert data[0] is not None or prob < data[-1]
+        assert data[-2] <= 1
         successes += data[0] is not None
         output.append((task_name, data))
         pbar.update(1)
