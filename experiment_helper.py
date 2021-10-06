@@ -1,4 +1,4 @@
-from type_system import BOOL, INT, STRING, Arrow
+from type_system import BOOL, INT, STRING, Arrow, Type
 import type_system
 from Predictions.models import RulesPredictor, BigramsPredictor
 from pcfg import PCFG
@@ -99,14 +99,18 @@ def filter_examples(examples, nb_arguments_max, max_list_size, lexicon):
         filtered_examples.append((i, o))
     return filtered_examples   
 
+
+def __get_type__(el) -> Type:
+    if isinstance(el, int):
+        return INT
+    elif isinstance(el, str):
+        return STRING
+    return type_system.List(INT)
+
+
 def __get_type_request(examples):
     input, output = examples[0]
-    type_req = INT if isinstance(output, int) else (STRING if isinstance(output, str) else type_system.List(INT))
-    for el in input:
-        if isinstance(el, int):
-            type_req = Arrow(INT, type_req)
-        elif isinstance(el, str):
-            type_req = Arrow(STRING, type_req)
-        else:
-            type_req = Arrow(type_system.List(INT), type_req)
+    type_req = __get_type__(output)
+    for el in input[:-1]:
+        type_req = Arrow(__get_type__(el), type_req)
     return type_req
