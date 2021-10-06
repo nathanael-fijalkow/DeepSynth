@@ -18,7 +18,7 @@ def load_tasks(file: str) -> Tuple[typing.List[Tuple[str,Any]], set]:
         for raw_task in raw_tasks:
             name = raw_task["program"]
             raw_examples = raw_task["examples"]
-            examples = [((raw_example["inputs"][0], None), raw_example["output"])
+            examples = [(raw_example["inputs"] + [None], raw_example["output"])
                         for raw_example in raw_examples]
 
             prog, type_request = __str2prog(name)
