@@ -1,4 +1,4 @@
-from type_system import BOOL, INT, STRING, Arrow, Type
+from type_system import INT, STRING, Arrow, Type
 import type_system
 from Predictions.models import RulesPredictor, BigramsPredictor
 from pcfg import PCFG
@@ -51,25 +51,37 @@ def make_program_checker_with_constants(dsl: DSL, examples, constants) -> Callab
 
 def task_set2dataset(tasks, model, dsl: DSL) -> List[Tuple[str, PCFG, Callable[[Program, bool], bool]]]:
     dataset = []
+    batch_IOs = []
+    batch_types = []
+    # Prepare batch
     for task in tasks:
         if len(task) == 3:
             name, examples, constants = task
         else:
             name, examples = task
             constants = None
-        try:
-            ex = [[([i[0]], o) for i, o in examples]]
-            grammar = model(ex)[0]
-        except AssertionError as e:
-            print("experiment_helper.py: task_set2dataset: An error occured while generating a grammar for task:", name, "\n\t", e)
-            continue
-        if isinstance(model, RulesPredictor):
-            grammar = model.reconstruct_grammars([grammar])[0]
+        ex = [([i[0]], o) for i, o in examples]
+        batch_IOs.append(ex)
         if isinstance(model, BigramsPredictor):
-            grammar = model.reconstruct_grammars(
-                [grammar], [__get_type_request(examples)], tensors=False)[0]
-            grammar = grammar.normalise()
-
+            batch_types.append(__get_type_request(examples))
+    # Inference
+    try:
+        grammars = model(batch_IOs)
+    except AssertionError as e:
+        print("experiment_helper.py: task_set2dataset: An error occured while generating grammars:\n\t", e)
+        return []
+    # Reconstruction
+    if isinstance(model, RulesPredictor):
+        grammars = model.reconstruct_grammars(grammars)
+    if isinstance(model, BigramsPredictor):
+        grammars = model.reconstruct_grammars(
+            grammars, batch_types, tensors=False)
+        grammars = [g.normalise() for g in grammars]
+    # To dataset
+    for i, grammar in enumerate(grammars):
+        name = tasks[i][0]
+        examples = tasks[i][1]
+        constants = None if len(tasks[i]) < 3 else tasks[i][2]
         dataset.append(
             (name, grammar, make_program_checker_with_constants(dsl, examples, constants) if constants else make_program_checker(dsl, examples)))
     return dataset
