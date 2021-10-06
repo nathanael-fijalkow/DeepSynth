@@ -6,6 +6,7 @@ from typing import Any, Tuple
 import typing
 from DSL import deepcoder
 import dsl
+from experiment_helper import filter_examples
 
 my_dsl = dsl.DSL(deepcoder.semantics, deepcoder.primitive_types, deepcoder.no_repetitions)
 
@@ -69,9 +70,8 @@ def filter_tasks_for_model(tasks, model) -> typing.List[Tuple[str, Any]]:
         if isinstance(model, RulesPredictor) and type_request != Arrow(List(INT), List(INT)):
             continue
 
-
-        examples = [(i, o) for i, o in examples if (len(i[0]) <= model.IOEncoder.size_max and all(
-            [el in model.IOEncoder.symbolToIndex for el in i[0]])) and ((isinstance(o, int) and o in model.IOEncoder.symbolToIndex) or all([el in model.IOEncoder.symbolToIndex for el in o]))]
+        examples = filter_examples(
+            examples, model.IOEncoder.nb_arguments_max, model.IOEncoder.size_max, model.IOEncoder.symbolToIndex)
         if len(examples) == 0:
             continue
 

@@ -1,4 +1,5 @@
 from type_system import BOOL, INT, STRING, Arrow
+import type_system
 from Predictions.models import RulesPredictor, BigramsPredictor
 from pcfg import PCFG
 from typing import Callable, List, Tuple
@@ -48,7 +49,7 @@ def make_program_checker_with_constants(dsl: DSL, examples, constants) -> Callab
         return False, None
     return checker
 
-def task_set2dataset(tasks, model, dsl) -> List[Tuple[str, PCFG, Callable[[Program, bool], bool]]]:
+def task_set2dataset(tasks, model, dsl: DSL) -> List[Tuple[str, PCFG, Callable[[Program, bool], bool]]]:
     dataset = []
     for task in tasks:
         if len(task) == 3:
@@ -74,24 +75,38 @@ def task_set2dataset(tasks, model, dsl) -> List[Tuple[str, PCFG, Callable[[Progr
     return dataset
 
 
-def __get_type(el, fallback=None):
-    if isinstance(el, bool):
-        return BOOL
-    elif isinstance(el, int):
-        return INT
-    elif isinstance(el, str):
-        return STRING
-    elif isinstance(el, list):
-        if len(el) > 0:
-            return List(__get_type(el[0]))
-        else:
-            return __get_type(fallback[0], fallback[1:])
-    elif isinstance(el, tuple):
-        assert el[-1] == None
-        return __get_type(el[0], el[1:-1])
-    assert False, f"Unknown type for:{el}"
-
+def filter_examples(examples, nb_arguments_max, max_list_size, lexicon):
+    filtered_examples = []
+    for i, o in examples:
+        if len(i) > nb_arguments_max:
+            continue
+        # List input
+        if any(hasattr(x, "__len__") and len(x) > max_list_size for x in i):
+            continue
+        if any(hasattr(x, "__len__") and any(el not in lexicon for el in x) for x in i):
+            continue
+        # List output
+        if hasattr(o, "__len__") and len(o) > max_list_size:
+            continue
+        if hasattr(o, "__len__") and any(x not in lexicon for x in o):
+            continue
+        # Non list input
+        if any(not hasattr(x, "__len__") and x not in lexicon and x is not None for x in i):
+            continue
+        # Non list output
+        if not hasattr(o, "__len__") and o not in lexicon:
+            continue
+        filtered_examples.append((i, o))
+    return filtered_examples   
 
 def __get_type_request(examples):
     input, output = examples[0]
-    return Arrow(__get_type(input[0], [i[0] for i, o in examples[1:]]), __get_type(output, [o for i, o in examples[1:]]))
+    type_req = INT if isinstance(output, int) else (STRING if isinstance(output, str) else type_system.List(INT))
+    for el in input:
+        if isinstance(el, int):
+            type_req = Arrow(INT, type_req)
+        elif isinstance(el, str):
+            type_req = Arrow(STRING, type_req)
+        else:
+            type_req = Arrow(type_system.List(INT), type_req)
+    return type_req

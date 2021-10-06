@@ -1,6 +1,7 @@
 from Predictions.models import RulesPredictor
 import glob
 import pickle
+from experiment_helper import filter_examples
 from type_system import BOOL, INT, Arrow, List, Type
 from typing import Any, Tuple
 import typing
@@ -45,8 +46,8 @@ def filter_tasks_for_model(tasks, model) -> typing.List[Tuple[str, Any]]:
         if isinstance(model, RulesPredictor) and type_request != Arrow(List(INT), List(INT)):
             continue
 
-        examples = [(i, o) for i, o in examples if len(i[0]) <= model.IOEncoder.size_max and all(
-            [el in model.IOEncoder.symbolToIndex for el in i[0]]) and all([el in model.IOEncoder.symbolToIndex for el in o])]
+        examples = filter_examples(
+            examples, model.IOEncoder.nb_arguments_max, model.IOEncoder.size_max, model.IOEncoder.symbolToIndex)
         if len(examples) == 0:
             continue
 
