@@ -75,26 +75,45 @@ def task_set2dataset(tasks, model, dsl: DSL) -> List[Tuple[str, PCFG, Callable[[
     return dataset
 
 
-def filter_examples(examples, nb_arguments_max, max_list_size, lexicon):
+def filter_examples(examples, nb_arguments_max, max_list_size, lexicon, verbose=False):
     filtered_examples = []
     for i, o in examples:
-        if len(i) > nb_arguments_max:
+
+        if len(i) - 1 > nb_arguments_max:
+            if verbose:
+                print("\ttoo many arguments:", len(i) - 1, ">", nb_arguments_max)
             continue
+        li = [x for x in i if hasattr(x, "__len__")]
+        nli = [x for x in i if not hasattr(x, "__len__")]
         # List input
-        if any(hasattr(x, "__len__") and len(x) > max_list_size for x in i):
+        if any(len(x) > max_list_size for x in li):
+            if verbose:
+                print("\tinput iterable too long:", max(len(x) for x in li), ">", max_list_size)
             continue
-        if any(hasattr(x, "__len__") and any(el not in lexicon for el in x) for x in i):
+        if any(any(el not in lexicon for el in x) for x in li):
+            if verbose:
+                print("\tinput iterable not in lexicon:", [
+                    [el for el in x if el not in lexicon] for x in li])
             continue
         # List output
         if hasattr(o, "__len__") and len(o) > max_list_size:
+            if verbose:
+                print("\toutput iterable too long:", len(o), ">", max_list_size)
             continue
         if hasattr(o, "__len__") and any(x not in lexicon for x in o):
+            if verbose:
+                print("\toutput iterable not in lexicon:", 
+                    [el for el in o if el not in lexicon])
             continue
         # Non list input
-        if any(not hasattr(x, "__len__") and x not in lexicon and x is not None for x in i):
+        if any(x not in lexicon and x is not None for x in nli):
+            if verbose:
+                print("\tinput not in lexicon:", [x for x in nli if x not in lexicon])
             continue
         # Non list output
         if not hasattr(o, "__len__") and o not in lexicon:
+            if verbose:
+                print("\toutput not in lexicon:", o)
             continue
         filtered_examples.append((i, o))
     return filtered_examples   
