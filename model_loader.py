@@ -182,10 +182,10 @@ def __build_generic_model(dsl: dsl.DSL, cfg_dictionary: Dict[Type, CFG], nb_argu
 
 
 def build_deepcoder_generic_model(types: Set[Type], max_program_depth: int = 4, autoload: bool = True) -> Tuple[dsl.DSL, CFG, BigramsPredictor]:
-    size_max = 10  # maximum number of elements in a list (input or output)
+    size_max = 19  # maximum number of elements in a list (input or output)
     nb_arguments_max = 3
     # all elements of a list must be from lexicon
-    lexicon = [x for x in range(-256, 256)]
+    lexicon = [x for x in range(-256, 257)]
 
     embedding_output_dimension = 10
     # only useful for RNNEmbedding
