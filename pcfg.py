@@ -49,6 +49,22 @@ class PCFG:
             self.normalise()
             self.sort()
 
+    def type_request(self) -> Type:
+        type_req = self.start[0]
+        variables = []
+        for S in self.rules:
+            for P in self.rules[S]:
+                if isinstance(P, Variable):
+                    if P not in variables:
+                        variables.append(P)
+        n = len(variables)
+        for i in range(n):
+            j = n - i - 1
+            for v in variables:
+                if v.variable == j:
+                    type_req = Arrow(v.type, type_req)
+        return type_req
+
     def __hash__(self):
         return self.hash
 
