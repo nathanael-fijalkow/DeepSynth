@@ -87,6 +87,21 @@ def task_set2dataset(tasks, model, dsl: DSL) -> List[Tuple[str, PCFG, Callable[[
     return dataset
 
 
+def task_set2uniform_dataset(tasks, dsl: DSL, max_program_depth: int = 4) -> List[Tuple[str, PCFG, Callable[[Program, bool], bool]]]:
+    dataset = []
+    # Prepare batch
+    for task in tasks:
+        if len(task) == 3:
+            name, examples, constants = task
+        else:
+            name, examples = task
+            constants = None
+        type_req = __get_type_request(examples)
+        grammar = dsl.DSL_to_CFG(type_req, max_program_depth=max_program_depth).CFG_to_Uniform_PCFG()
+        dataset.append(
+            (name, grammar, make_program_checker_with_constants(dsl, examples, constants) if constants else make_program_checker(dsl, examples)))
+    return dataset
+
 def filter_examples(examples, nb_arguments_max, max_list_size, lexicon, verbose=False):
     filtered_examples = []
     one_output_is_nonempty = False
