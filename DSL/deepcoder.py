@@ -19,30 +19,29 @@ def scanl(op):
 			y = [l[0]]
 			for x in l[1:]:
 				last = y[-1]
-				y.append(op(x,last)) 
+				y.append(op(last, x)) 
 		return y
 	return aux
 
 semantics = {
 	'HEAD': lambda l: l[0] if len(l)>0 else None,
-	'LAST': lambda l: l[-1] if len(l)>0 else None,
-	'TAIL': lambda l: l[1:] if len(l) >    0 else None,
-	'ACCESS': access,
+	'TAIL': lambda l: l[-1] if len(l) > 0 else None,
+	'ACCESS': lambda i: lambda l: access(i, l),
 	'MINIMUM': lambda l: min(l) if len(l)>0 else None,
 	'MAXIMUM': lambda l: max(l) if len(l)>0 else None,
 	'LENGTH': lambda l: len(l),
 	'COUNT[<0]': lambda l: len([x for x in l if x<0]),
-	'COUNT[>0]': lambda l: len([x for x in l if x<0]),
+	'COUNT[>0]': lambda l: len([x for x in l if x>0]),
 	'COUNT[EVEN]': lambda l: len([x for x in l if x%2==0]),
 	'COUNT[ODD]': lambda l: len([x for x in l if x%2==1]),
 	'SUM': lambda l: sum(l),
 
-	'TAKE': lambda i, l: l[:i],
-	'DROP': lambda i, l: l[i:],
+	'TAKE': lambda i: lambda l: l[:i],
+	'DROP': lambda i: lambda l: l[i:],
 	'SORT': lambda l: sorted(l),
 	'REVERSE': lambda l: l[::-1],
 	'FILTER[<0]': lambda l: [x for x in l if x<0],
-	'FILTER[>0]': lambda l: [x for x in l if x<0],
+	'FILTER[>0]': lambda l: [x for x in l if x>0],
 	'FILTER[EVEN]': lambda l: [x for x in l if x%2==0],
 	'FILTER[ODD]': lambda l: [x for x in l if x % 2 == 1],
 	'MAP[+1]': lambda l: [x + 1 for x in l],
@@ -59,7 +58,7 @@ semantics = {
 	'ZIPWITH[-]': lambda l1: lambda l2: [x - y for (x,y) in zip(l1,l2)],
 	'ZIPWITH[*]': lambda l1: lambda l2: [x * y for (x,y) in zip(l1,l2)],
 	'ZIPWITH[max]': lambda l1: lambda l2: [(x if x > y else y) for (x,y) in zip(l1,l2)],
-	'ZIPWITH[min]': lambda l1: lambda l2: [(y if x > y else y) for (x,y) in zip(l1,l2)],
+	'ZIPWITH[min]': lambda l1: lambda l2: [(y if x > y else x) for (x,y) in zip(l1,l2)],
 	'SCAN1L[+]': scanl(lambda x, y: x + y),
 	'SCAN1L[-]': scanl(lambda x, y: x - y),
 	'SCAN1L[*]': scanl(lambda x, y: x * y),
@@ -71,8 +70,7 @@ semantics = {
 
 primitive_types = {
 	'HEAD': Arrow(List(INT),INT),
-	'LAST': Arrow(List(INT),INT),
-	'TAIL': Arrow(List(INT), List(INT)),
+	'TAIL': Arrow(List(INT), INT),
 	'ACCESS': Arrow(List(INT),INT),
 	'MINIMUM': Arrow(List(INT),INT),
 	'MAXIMUM': Arrow(List(INT),INT),
