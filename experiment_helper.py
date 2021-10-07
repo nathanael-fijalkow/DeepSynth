@@ -1,3 +1,4 @@
+import torch
 from type_system import INT, STRING, Arrow, Type
 import type_system
 from Predictions.models import RulesPredictor, BigramsPredictor
@@ -66,7 +67,8 @@ def task_set2dataset(tasks, model, dsl: DSL) -> List[Tuple[str, PCFG, Callable[[
             batch_types.append(__get_type_request(examples))
     # Inference
     try:
-        grammars = model(batch_IOs)
+        with torch.no_grad():
+            grammars = model(batch_IOs)
     except AssertionError as e:
         print("experiment_helper.py: task_set2dataset: An error occured while generating grammars:\n\t", e)
         return []
