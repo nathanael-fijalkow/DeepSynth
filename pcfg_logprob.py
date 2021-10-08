@@ -125,5 +125,5 @@ class LogProbPCFG:
                     self.rules[S][P][0], exp(self.rules[S][P][1]) / s
         return PCFG(self.start, 
             normalised_rules, 
-            max_program_depth=self.max_program_depth)
+            max_program_depth=self.max_program_depth, clean=True)
     
