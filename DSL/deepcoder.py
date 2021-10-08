@@ -118,9 +118,4 @@ no_repetitions = {
 	'FILTER[>0]',
 	'FILTER[EVEN]',
 	'FILTER[ODD]',
-	'SCAN1L[+]',
-	'SCAN1L[-]',
-	'SCAN1L[*]',
-	'SCAN1L[min]',
-	'SCAN1L[max]',
 	}
