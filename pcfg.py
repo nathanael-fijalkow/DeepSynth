@@ -103,7 +103,7 @@ class PCFG:
     def normalise(self):
         for S in self.rules:
             s = sum([self.rules[S][P][1] for P in self.rules[S]])
-            for P in self.rules[S]:
+            for P in list(self.rules[S].keys()):
                 args_P, w = self.rules[S][P]
                 self.rules[S][P] = (args_P, w / s)
 
