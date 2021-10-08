@@ -320,10 +320,16 @@ def gather_data(dataset: typing.List[Tuple[str, PCFG, Callable]], algo_index: in
     for task_name, pcfg, is_correct_program in dataset:
         logging.debug("## Task:", task_name)
         data = run_algorithm(is_correct_program, pcfg, algo_index)
+        if not data[0]:
+            logging.debug("\tsolution=", task_name)
+            logging.debug("\ttype request=", pcfg.type_request())
         if isinstance(task_name, Program):
             prob = pcfg.probability_program(pcfg.start, task_name)
+            if not data[0]:
+                logging.debug("\tlast probability=", data[-1])
+                logging.debug("\tsolution probability=", prob)
             assert data[0] is not None or prob < data[-1]
-        assert data[-2] <= 1
+        assert algorithm != heap_search or data[-2] <= 1 + 1e-3, data
         successes += data[0] is not None
         output.append((task_name, data))
         pbar.update(1)
