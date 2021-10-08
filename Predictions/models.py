@@ -289,7 +289,7 @@ class BigramsPredictor(nn.Module):
                     parent_index = self.number_of_primitives  # None
                     argument_number = 0
                 variables = []
-                for j, P in enumerate(cfg.rules[S]):
+                for P in cfg.rules[S]:
                     cpy_P = copy.deepcopy(P)
                     if isinstance(P, (BasicPrimitive, New)):
                         primitive_index = self.symbolToIndex[P]
@@ -324,13 +324,13 @@ class BigramsPredictor(nn.Module):
                         for P in rules[S]:
                             rules[S][P] = rules[S][P][0], rules[S][P][1] + to_add
                     else:
+                        # There are no other choices than variables
                         var_probability = 1
                     # Normalise variable probability
-                    normalised_variable_logpgob = np.log(
+                    normalised_variable_logprob = np.log(
                         var_probability / len(variables))
                     for P in variables:
-                        rules[S][P] = rules[S][P][0], normalised_variable_logpgob
-
+                        rules[S][P] = rules[S][P][0], normalised_variable_logprob
             grammar = LogProbPCFG(cfg.start,
                                   rules,
                                   max_program_depth=cfg.max_program_depth)
