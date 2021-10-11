@@ -7,6 +7,7 @@ dataset = "dreamcoder"
 model = "fixed+rnn+global"
 folder = "results_semantics"
 
+cutoff_time = 1
 
 data = {}
 
@@ -39,7 +40,9 @@ for algo_name, algo_data in data.items():
     additional_data = []
     for _, prog, search_time, evaluation_time, nb_programs, cumulative_probability, probability in algo_data:
         cur_succ += prog is not None and len(prog) > 0
-        capped_search_time = min(100 - float(evaluation_time),float(search_time))
+        if float(search_time) + float(evaluation_time) >= cutoff_time + 1:
+            cur_succ -= prog is not None and len(prog) > 0
+        capped_search_time = min(cutoff_time - float(evaluation_time), float(search_time))
         time_used = capped_search_time + float(evaluation_time)
         curr_time += time_used
         curr_programs += int(nb_programs)
