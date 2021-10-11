@@ -324,11 +324,15 @@ def gather_data(dataset: typing.List[Tuple[str, PCFG, Callable]], algo_index: in
             logging.debug("\tsolution=", task_name)
             logging.debug("\ttype request=", pcfg.type_request())
         if isinstance(task_name, Program):
-            prob = pcfg.probability_program(pcfg.start, task_name)
-            if not data[0]:
-                logging.debug("\tlast probability=", data[-1])
-                logging.debug("\tsolution probability=", prob)
-            assert data[0] is not None or prob < data[-1]
+            try:
+                prob = pcfg.probability_program(pcfg.start, task_name)
+                if not data[0]:
+                    logging.debug("\tlast probability=", data[-1])
+                    logging.debug("\tsolution probability=", prob)
+                assert data[0] is not None or algorithm != heap_search or prob < data[-1]
+            except KeyError as e:
+                print("Failed to compute probability of:", task_name)
+                print("Error:", e)
         assert algorithm != heap_search or data[-2] <= 1 + 1e-3, data
         successes += data[0] is not None
         output.append((task_name, data))
