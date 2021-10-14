@@ -3,18 +3,23 @@ import csv
 
 import matplotlib.pyplot as plt
 
-dataset = "dreamcoder"
-model = "fixed+rnn+global"
-folder = "results_semantics"
+import numpy as np
 
-cutoff_time = 1
+dataset = "dreamcoder"
+folder = "results_semantics/dreamcoder"
+# folder = "."
+# dataset = "deepcoder_T=3_test"
+# folder = "./results_semantics/deepcoder"
+
+cutoff_time = 101
 
 data = {}
 
 # Load data
 for file in glob.glob(f"{folder}/*.csv"):
     file_name = file.replace(folder + "/", "")
-    if not file_name.startswith("algo_") or not file_name.endswith(f"_model_{model}_dataset_{dataset}_results_semantic.csv"):
+    file_name = file_name.replace(".csv", "")
+    if not file_name.startswith("algo_") or f"_dataset_{dataset}_results_semantic" not in file_name:
         continue
     algo_name = file_name[5:file_name.find("_model")]
     with open(file) as fd:
@@ -25,7 +30,9 @@ for file in glob.glob(f"{folder}/*.csv"):
             if i == 0:
                 continue
             algo_data.append(row)
-        data[algo_name] = algo_data
+        if algo_name not in data:
+            data[algo_name] = []
+        data[algo_name].append(algo_data)
 
 print("Found data for:", list(data.keys()))
 
@@ -33,23 +40,37 @@ total_tasks = None
 # Preprocess
 processed_data = {}
 for algo_name, algo_data in data.items():
-    if total_tasks is None:
-        total_tasks = len(algo_data)
-    new_data = [[0, 0, 0]]
-    cur_succ, curr_time, curr_programs = 0, 0, 0
-    additional_data = []
-    for _, prog, search_time, evaluation_time, nb_programs, cumulative_probability, probability in algo_data:
-        cur_succ += prog is not None and len(prog) > 0
-        if float(search_time) + float(evaluation_time) >= cutoff_time + 1:
-            cur_succ -= prog is not None and len(prog) > 0
-        capped_search_time = min(cutoff_time - float(evaluation_time), float(search_time))
-        time_used = capped_search_time + float(evaluation_time)
-        curr_time += time_used
-        curr_programs += int(nb_programs)
-        programs_per_sec = int(nb_programs) / time_used
-        additional_data.append([capped_search_time, float(evaluation_time), programs_per_sec])
-        new_data.append([cur_succ, curr_time, curr_programs])
-    processed_data[algo_name] = (new_data, additional_data)
+    # Compute total_tasks
+    total_tasks = max(total_tasks or 0, max(len(run) for run in algo_data))
+        # for name, _, _, _, _, _, _ in algo_data[0]:
+            # if "var2" in name or "var1" in name:
+                # total_tasks -= 1
+                # continue
+
+    output_matrix = np.zeros((len(algo_data), total_tasks, 6), float)
+    for i, run in enumerate(algo_data):
+        j: int = 0
+        for name, prog, search_time, evaluation_time, nb_programs, cumulative_probability, probability in run:
+            # if "var2" in name or "var1" in name:
+                # continue
+            # print("\tj=", j)
+            success: int = prog is not None and len(prog) > 0
+            output_matrix[i, j, 0] = (output_matrix[i, j - 1, 0] if j > 0 else 0) + success
+            if float(search_time) + float(evaluation_time) >= cutoff_time + 1:
+                output_matrix[i, j, 0] -= success
+            capped_search_time = min(
+                cutoff_time - float(evaluation_time), float(search_time))
+            time_used = capped_search_time + float(evaluation_time)
+            output_matrix[i, j, 1] = (
+                output_matrix[i, j - 1, 1] if j > 0 else 0) + time_used
+            output_matrix[i, j, 2] = (
+                output_matrix[i, j - 1, 2] if j > 0 else 0) + int(nb_programs)
+            programs_per_sec = int(nb_programs) / time_used
+            output_matrix[i, j, 3] = capped_search_time
+            output_matrix[i, j, 4] = float(evaluation_time)
+            output_matrix[i, j, 4] = programs_per_sec
+            j += 1
+    processed_data[algo_name] = output_matrix
 
 
 plt.style.use('seaborn-colorblind')
@@ -57,19 +78,27 @@ print(f"Algorithm       Prog/s")
 
 # Plot success wrt time
 time_max = 0
-for algo, (new_data, processed_data) in processed_data.items():
-    time_data = [x[1] for x in new_data]
-    time_max = max(time_max, max(time_data))
-    plt.plot(time_data, [x[0] for x in new_data], label=algo)
-    programs_per_sec = sum([x[2] for x in processed_data]) / len(processed_data)
+for algo, data in processed_data.items():
+    time_max = max(time_max, np.max(data[:, :, 1]))
+
+    # Mean plot
+    mean_time = np.mean(data[:, :, 1], axis=0)
+    mean_success = np.mean(data[:, :, 0], axis=0)
+    plt.plot(mean_time, mean_success, label=algo)
+
+    std_time = np.std(data[:, :, 1], axis=0)
+    plt.fill_betweenx(mean_success, mean_time - 2 *
+                      std_time, mean_time + 2 * std_time, alpha=.4)
+
+    programs_per_sec = np.mean(data[:, :, 4])
     print(f"{algo:<15} {programs_per_sec:.0f} prog/s")
 
-plt.hlines([total_tasks], xmin=0, xmax=time_max, label="All tasks",
-           color=f"C{len(processed_data)}", linestyles="dashed")
+plt.hlines([total_tasks], label="All tasks",
+           color=f"C{len(processed_data)}", linestyles="dashed", xmin=0, xmax=time_max)
 plt.xlabel("time (in seconds)")
 plt.ylabel("tasks completed")
-plt.xlim(0)
-plt.ylim(0)
+plt.xlim(0, time_max * 1.02)
+plt.ylim(0, total_tasks + 2)
 
 plt.legend()
 plt.savefig(f"results_semantics/machine_learned_{dataset}.png",
