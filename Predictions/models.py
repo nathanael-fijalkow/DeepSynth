@@ -331,6 +331,8 @@ class BigramsPredictor(nn.Module):
                         var_probability / len(variables))
                     for P in variables:
                         rules[S][P] = rules[S][P][0], normalised_variable_logprob
+                        normalised_variable_logprob = np.log(
+                            np.exp(normalised_variable_logprob) - 1e-7)
             grammar = LogProbPCFG(cfg.start,
                                   rules,
                                   max_program_depth=cfg.max_program_depth)
