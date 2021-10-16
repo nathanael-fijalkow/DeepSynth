@@ -338,6 +338,7 @@ def gather_data(dataset: typing.List[Tuple[str, PCFG, Callable]], algo_index: in
         output.append((task_name, data))
         pbar.update(1)
         pbar.set_postfix_str(f"{successes} solved")
+    pbar.close()
     return output
 
 
@@ -357,4 +358,5 @@ def gather_data_parallel(dataset: typing.List[Tuple[str, PCFG, Callable]], algo_
         successes += data[0] is not None
         pbar.update(1)
         pbar.set_postfix_str(f"{successes} solved")
+    pbar.close()
     return output
