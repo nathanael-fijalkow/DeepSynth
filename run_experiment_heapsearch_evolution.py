@@ -128,7 +128,7 @@ def train(model):
     batch_IOs, batch_program = [], []
     for name, ios in train_tasks:
         prog = solutions[name]
-        batch_IOs.append(ios)
+        batch_IOs.append([([i[0]], o) for i, o in ios])
         batch_program.append(model.ProgramEncoder(prog))
 
     for i in range(nb_epochs):
