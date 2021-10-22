@@ -5,13 +5,19 @@ import matplotlib.pyplot as plt
 
 import numpy as np
 
-dataset = "dreamcoder"
-folder = "results_semantics/dreamcoder"
-# folder = "."
+# # Dreamcoder
+# dataset = "dreamcoder"
+# folder = "results_semantics/dreamcoder"
+# # HeapSearch Evolution
+dataset = "dreamcoder_gen"
+folder = "."
+# # Deepcpder
 # dataset = "deepcoder_T=3_test"
 # folder = "./results_semantics/deepcoder"
 
 cutoff_time = 101
+plot_max = False
+max_variables_per_task = 1
 
 data = {}
 
@@ -42,18 +48,18 @@ processed_data = {}
 for algo_name, algo_data in data.items():
     # Compute total_tasks
     total_tasks = max(total_tasks or 0, max(len(run) for run in algo_data))
-        # for name, _, _, _, _, _, _ in algo_data[0]:
-            # if "var2" in name or "var1" in name:
-                # total_tasks -= 1
-                # continue
+    # Remove tasks that have more variables
+    for name, _, _, _, _, _, _ in algo_data[0]:
+        if f"var{max_variables_per_task}" in name:
+            total_tasks -= 1
+            continue
 
     output_matrix = np.zeros((len(algo_data), total_tasks, 6), float)
     for i, run in enumerate(algo_data):
         j: int = 0
         for name, prog, search_time, evaluation_time, nb_programs, cumulative_probability, probability in run:
-            # if "var2" in name or "var1" in name:
-                # continue
-            # print("\tj=", j)
+            if f"var{max_variables_per_task}" in name:
+                continue
             success: int = prog is not None and len(prog) > 0
             output_matrix[i, j, 0] = (output_matrix[i, j - 1, 0] if j > 0 else 0) + success
             if float(search_time) + float(evaluation_time) >= cutoff_time + 1:
@@ -92,13 +98,16 @@ for algo, data in processed_data.items():
 
     programs_per_sec = np.mean(data[:, :, 4])
     print(f"{algo:<15} {programs_per_sec:.0f} prog/s")
-
-plt.hlines([total_tasks], label="All tasks",
-           color=f"C{len(processed_data)}", linestyles="dashed", xmin=0, xmax=time_max)
+if plot_max:
+    plt.hlines([total_tasks], label="All tasks",
+            color=f"C{len(processed_data)}", linestyles="dashed", xmin=0, xmax=time_max)
 plt.xlabel("time (in seconds)")
 plt.ylabel("tasks completed")
 plt.xlim(0, time_max * 1.02)
-plt.ylim(0, total_tasks + 2)
+if plot_max:
+    plt.ylim(0, total_tasks + 2)
+else:
+    plt.ylim(0)
 
 plt.legend()
 plt.savefig(f"results_semantics/machine_learned_{dataset}.png",
