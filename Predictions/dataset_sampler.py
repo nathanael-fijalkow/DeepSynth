@@ -58,7 +58,8 @@ class Dataset(torch.utils.data.IterableDataset):
         output = None
         while flag or output == None:
             # First select a type
-            selected_type = random.choice(self.allowed_types)
+            selected_type: Type = random.choice(self.allowed_types)
+            rtype = selected_type.returns()
             # print("Selected type:", selected_type)
             program = next(self.program_sampler[selected_type])
             while program.is_constant():
@@ -79,7 +80,7 @@ class Dataset(torch.utils.data.IterableDataset):
                 for input_ in inputs:
                     environment = tuple2constlist(input_)
                     output = program.eval_naive(self.dsl, environment)
-                    if self.__output_validation__(output):
+                    if self.__output_validation__(output, rtype):
                         outputs.append(output)
                     else:
                         raise ValueError()
@@ -96,7 +97,9 @@ class Dataset(torch.utils.data.IterableDataset):
     
 
 
-    def __output_validation__(self, output):
+    def __output_validation__(self, output, return_type: Type):
+        if isinstance(output, int) and return_type == INT:
+            return True
         if len(output) == 0 or len(output) > self.input_sampler.size_max: 
             return False
         for e in output:
