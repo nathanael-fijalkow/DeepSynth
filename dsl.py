@@ -135,8 +135,12 @@ class DSL:
         """
         self.instantiate_polymorphic_types(upper_bound_type_size)
 
-        return_type = type_request.returns()
-        args = type_request.arguments()
+        if isinstance(type_request, Arrow):
+            return_type = type_request.returns()
+            args = type_request.arguments()
+        else:
+            return_type = type_request
+            args = []
 
         rules = {}
 
