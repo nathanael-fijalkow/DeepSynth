@@ -14,12 +14,12 @@ authors:
     affiliation: 1
   - name: Théo Matricon
     affiliation: 1
-    orcid:  0000-0002-5043-3221 
+    orcid: 0000-0002-5043-3221 
   - name: Kevin Ellis
     affiliation: 3
   - name: Pierre Ohlmann
     affiliation: 4
-    orcid:  0000-0002-4685-5253
+    orcid: 0000-0002-4685-5253
   - name: Akarsh Potta
     affiliation: 5
 affiliations:
