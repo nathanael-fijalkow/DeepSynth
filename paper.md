@@ -46,13 +46,18 @@ One way to specify such programs is from pairs of input-output examples.
 # Statement of need
 
 A common problem in program synthesis is to generate programs based on examples (PBE).  This automated synthesys shines when applied on domain specific languages (DSL). This DSL produced by the user can then be processed to generate programs however doing so is complex and the search for likely programs that fit the examples given can be hard.
-`DeepSynth` proposes an automated pipeline for professionals and for students to generate programs based on pairs of input-output examples.
+`DeepSynth` proposes an automated pipeline for engineers , researchers and for students to generate programs based on pairs of input-output examples.
 \autoref{fig:description} illustrates the machine learning pipeline for program synthesis on a toy DSL describing integer list manipulating program. This software is the implementation associated to the paper of [@Fijalkow:2021] (TODO: fix this to AAAI 2022 submission).
 This framework leverages [@pytorch] to produce a neural network to guide the search based on examples towards likely programs.
 The enumeration of likely programs can thus be done optimally.
 It can furthermore be parallisled without concerns providing a scalable neural program synthesys approach.
 
 ![Pipeline for neural predictions for syntax guided program synthesis.\label{fig:description}](main_figure.png)
+
+# State of the field
+
+There is mostly one application that enables users to generate programs based on a string description and that is GitHub Copilot [@copilot], which uses neural networks to predict what the user is going to type next. However this project is radically different from ours, first it has been trained on a lot of public code, and generates program without any guarantees based on a textual context whereas we work on the PBE scheme.
+Furthermore, many DSL languages with which professionals wwork with may be limited to internal tools, where our framework can help whereas GitHub Copilot can't. Finally our software is free and open source whereas GitHub Copilot is indicated to be a paid service.
 
 # Features
 
