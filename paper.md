@@ -23,16 +23,16 @@ authors:
   - name: Akarsh Potta
     affiliation: 5
 affiliations:
- - name: CNRS, LaBRI and Université de Bordeaux, France
-   index: 1
- - name: The Alan Turing Institute of data science, United Kingdom
-   index: 2
- - name: Cornell University, United States
-   index: 3
- - name: University of Paris, France
-   index: 4
- - name: Indidan Institute of Technology, Bombay, India 
-   index: 5
+  - name: CNRS, LaBRI and Université de Bordeaux, France
+    index: 1
+  - name: The Alan Turing Institute of data science, United Kingdom
+    index: 2
+  - name: Cornell University, United States
+    index: 3
+  - name: University of Paris, France
+    index: 4
+  - name: Indidan Institute of Technology, Bombay, India 
+    index: 5
 date: 13 December 2021
 bibliography: paper.bib
 ---
@@ -47,8 +47,8 @@ One way to specify such programs is from pairs of input-output examples.
 
 A common problem in program synthesis is to generate programs based on examples (PBE).  This automated synthesys shines when applied on domain specific languages (DSL). This DSL produced by the user can then be processed to generate programs however doing so is complex and the search for likely programs that fit the examples given can be hard.
 `DeepSynth` proposes an automated pipeline for professionals and for students to generate programs based on pairs of input-output examples.
-Figure \autoref{fig:description} illustrates the machine learning pipeline for program synthesis on a toy DSL describing integer list manipulating program. This software is the implementation associated to the paper of `@Fijalkow:2021` (TODO: fix this to AAAI 2022 submission).
-Theis framework leverages `@pytorch` to produce a neural network to guide the search based on examples towards likely programs.
+\autoref{fig:description} illustrates the machine learning pipeline for program synthesis on a toy DSL describing integer list manipulating program. This software is the implementation associated to the paper of `@Fijalkow:2021` (TODO: fix this to AAAI 2022 submission).
+This framework leverages [@pytorch] to produce a neural network to guide the search based on examples towards likely programs.
 The enumeration of likely programs can thus be done optimally.
 It can furthermore be parallisled without concerns providing a scalable neural program synthesys approach.
 
