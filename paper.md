@@ -54,6 +54,13 @@ It can furthermore be parallisled without concerns providing a scalable neural p
 
 ![Pipeline for neural predictions for syntax guided program synthesis.\label{fig:description}](main_figure.png)
 
+# How it works?
+
+A user can implement their own DSL. Then following the neural architecures already provided they can create a neural network that predict probabilities for their CFG.
+We provide an automatic training procedure that supports a few common types off the shelf.
+With their network now trained, they can directly use the trained network along with the provided algorithms to find their desired program.
+Furthermore, they can scale with multiple CPUs by splitting the work on multiple CPUs with a small overhead at the start and a linear speedup in the number of CPUs. Technical details of our framework are described in our [Fijalkow:2021] paper.
+
 # State of the field
 
 There is mostly one application that enables users to generate programs based on a string description and that is GitHub Copilot [@copilot], which uses neural networks to predict what the user is going to type next. However this project is radically different from ours, first it has been trained on a lot of public code, and generates program without any guarantees based on a textual context whereas we work on the PBE scheme.
