@@ -59,7 +59,7 @@ It can furthermore be parallisled without concerns providing a scalable neural p
 A user can implement their own DSL. Then following the neural architecures already provided they can create a neural network that predict probabilities for their CFG.
 We provide an automatic training procedure that supports a few common types off the shelf.
 With their network now trained, they can directly use the trained network along with the provided algorithms to find their desired program.
-Furthermore, they can scale with multiple CPUs by splitting the work on multiple CPUs with a small overhead at the start and a linear speedup in the number of CPUs. Technical details of our framework are described in our [Fijalkow:2021] paper.
+Furthermore, they can scale with multiple CPUs by splitting the work on multiple CPUs with a small overhead at the start and a linear speedup in the number of CPUs. Technical details of our framework are described in our [@Fijalkow:2021] paper.
 
 # State of the field
 
