@@ -6,21 +6,16 @@ tags:
   - enumeration
   - scalable
 authors:
+  - name: Théo Matricon
+    affiliation: 1
+    orcid: 0000-0002-5043-3221 
   - name: Nathanaël Fijalkow
     orcid: 0000-0002-6576-4680  
     affiliation: "1, 2" # (Multiple affiliations must be quoted)
   - name: Guillaume Lagarde
     affiliation: 1
-  - name: Théo Matricon
-    affiliation: 1
-    orcid: 0000-0002-5043-3221 
   - name: Kevin Ellis
     affiliation: 3
-  - name: Pierre Ohlmann
-    affiliation: 4
-    orcid: 0000-0002-4685-5253
-  - name: Akarsh Potta
-    affiliation: 5
 affiliations:
   - name: CNRS, LaBRI and Université de Bordeaux, France
     index: 1
@@ -28,10 +23,6 @@ affiliations:
     index: 2
   - name: Cornell University, United States
     index: 3
-  - name: University of Paris, France
-    index: 4
-  - name: Indidan Institute of Technology, Bombay, India 
-    index: 5
 date: 13 December 2021
 bibliography: paper.bib
 ---
