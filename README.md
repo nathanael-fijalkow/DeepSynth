@@ -1,11 +1,11 @@
 # DeepSynth
 General-purpose program synthesiser.
 
-This is the repository for the code of the paper **"Scaling Neural Program Synthesis with Distribution-based Search"**.
+This is the repository for the code of the paper **"[Scaling Neural Program Synthesis with Distribution-based Search](https://arxiv.org/abs/2110.12485)"**
+published in the conference proceedings of the AAAI Conference on Artificial Intelligence, AAAI'22.
 
 **Authors**:
-Anonymous
-
+Nathanaël Fijalkow, Guillaume Lagarde, Théo Matricon, Kevin Ellis, Pierre Ohlmann, Akarsh Potta
 
 ![Figure](https://github.com/nathanael-fijalkow/DeepSynth/raw/main/main_figure.png)
 
