@@ -1,6 +1,5 @@
 ---
-title: 'DeepSynth: Scaling Neural Program Synthesis with
-Distribution-based Search'
+title: 'DeepSynth: Scaling Neural Program Synthesis with Distribution-based Search'
 tags:
   - Python
   - program synthesis
