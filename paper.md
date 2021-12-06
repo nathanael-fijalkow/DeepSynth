@@ -70,6 +70,7 @@ Furthermore, many DSL languages with which professionals work with may be limite
 # Features
 
 The package allows to:
+
 - create a simple DSL from syntaxic constraints and semantics functions;
 - Transform this DSL into a context free grammar;
 - Transform this CFG into a Probabilistic CFG (PCFG);
