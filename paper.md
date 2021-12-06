@@ -48,7 +48,7 @@ A common problem in program synthesis is to generate programs based on examples 
 `DeepSynth` proposes an automated pipeline for engineers, researchers and students to generate programs based on pairs of input-output examples.
 \autoref{fig:description} illustrates the machine learning pipeline for program synthesis on a toy DSL describing integer list manipulating program. The user only needs to specify the setting and the input output examples. The setting represents the semantic and syntaxic constraints describing the DSL, this can be implemented by an expert. The pairs of input-output examples can then be given the end user.
 This software is the implementation associated to @Fijalkow:2021.
-This framework leverages @pytorch to produce a neural network to guide the search based on examples towards likely programs.
+This framework leverages PyTorch [@pytorch] to produce a neural network to guide the search based on examples towards likely programs.
 Then the enumeration of likely programs can be done with algorithms such as `HeapSearch` that are proved optimal yet are faster than previous optimal enumeration algorithms such as $A^*$.
 Furthermore, the search can be parallelised for free providing a scalable neural program synthesis approach.
 This parallelism and these enumerations algorithms fit the need of scalable search procedures because of the exponential growth of the search space.
