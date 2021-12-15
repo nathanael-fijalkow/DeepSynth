@@ -112,6 +112,8 @@ def create_dataset():
 # Plot comparison
 def plot():
 	logging.info('Plot comparison')
+	plt.style.use('seaborn-colorblind')
+
 	timepoints = np.logspace(start = -1, stop = log10(timeout), num = number_timepoints)
 
 	for algo_index in range(len(list_algorithms)):

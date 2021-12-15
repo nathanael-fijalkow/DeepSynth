@@ -165,6 +165,8 @@ def create_dataset():
 # Plot cumulative probability VS time
 def plot_cumulative_probability_vs_time():
 	logging.info('Plot cumulative probability VS time')
+	plt.style.use('seaborn-colorblind')
+
 	for algo_index in range(len(list_algorithms)):
 		algorithm, name_algo, param = list_algorithms[algo_index]
 		# timepoints = np.arange(start = 0, stop = number_timepoints)

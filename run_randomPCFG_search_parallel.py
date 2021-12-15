@@ -289,6 +289,9 @@ def create_dataset():
 
 def plot_programs_vs_time():
     logging.info('Plot programs VS time')
+
+
+    plt.style.use('seaborn-colorblind')
     for splits in split_numbers:
         for algo_index in range(len(list_algorithms)):
             algorithm, name_algo, param = list_algorithms[algo_index]
@@ -339,6 +342,6 @@ timeout = 1
 
 number_countpoints = 1_000
 max_number_programs = 1e7
-ray.init()
-create_dataset()
+# ray.init()
+# create_dataset()
 plot_programs_vs_time()
