@@ -1,214 +1,244 @@
 from pcfg import PCFG
-from typing import Any, Dict, List, Optional, Tuple
 import bisect
 import numpy as np
-from cons_list import cons_list2list, length, cons_list_split
+from typing import Dict, List, Optional, Tuple
+import bisect
+from dataclasses import dataclass, field
+import copy
 
-cons_list = Any
-Context = Any
-NodeData = Tuple[float, List[Context], cons_list, cons_list]
+from program import Program
+from type_system import PrimitiveType, Type
 
 
-def __common_prefix__(a: cons_list, b: cons_list) -> cons_list:
+
+@dataclass(frozen=True)
+class Context:
+    type: Type
+    predecessors: List[Tuple[PrimitiveType, int]] = field(default_factory=lambda: [])
+    depth: int = field(default=0)
+
+@dataclass(order=True, frozen=True)
+class Node:
+    probability: float
+    next_contexts: List[Context] = field(compare=False)
+    program: List[Program] = field(compare=False)
+    derivation_history: List[Context] = field(compare=False)
+
+
+PRules = Dict[Context, Dict[Program, Tuple[List[Context], float]]]
+
+def __common_prefix__(a: List[Context], b: List[Context]) -> List[Context]:
     if a == b:
         return a
-    possibles = []
-    try:
-        _, ta = a
-        possibles.append(__common_prefix__(ta, b))
-    except:
-        return None
-    try:
-        _, tb = b
-        possibles.append(__common_prefix__(a, tb))
-    except:
-        return None
-    lentghs = [length(x) for x in possibles]
+    candidates = []
+    if len(a) > 1:
+        candidates.append(__common_prefix__(a[1:], b))
+        if len(b) >= 1 and a[0] == b[0]:
+            candidates.append([a[0]] + __common_prefix__(a[1:], b[1:]))
+    if len(b) > 1:
+        candidates.append(__common_prefix__(a, b[1:]))
+    # Take longest common prefix
+    lentghs = [len(x) for x in candidates]
+    if len(lentghs) == 0:
+        return []
     if max(lentghs) == lentghs[0]:
-        return possibles[0]
-    return possibles[1]
+        return candidates[0]
+    return candidates[1]
 
 
-def __remove_prefix__(seq: cons_list, prefix: cons_list, len_seq: Optional[int] = None, len_prefix: Optional[int] = None) -> cons_list:
-    l_seq = len_seq or length(seq)
-    l_prefix = len_prefix or length(prefix)
-    if l_seq == l_prefix:
-        return None
-    return (seq[0], __remove_prefix__(seq[1], prefix, l_seq - 1, l_prefix))
+def __adapt_ctx__(S: Context, i: int) -> Context:
+    pred = S.predecessors[0]
+    return Context(S.type, [(pred[0], i)] + S.predecessors[1:], S.depth)
 
 
-def __pcfg_from__(original_pcfg: PCFG, group: List[NodeData]) -> Tuple[cons_list, PCFG]:
-    # print("=" * 60)
+def __create_path__(
+    rules: PRules,
+    original_pcfg: PCFG,
+    rule_no: int,
+    Slist: List[Context],
+    Plist: List[Program],
+    mapping: Dict[Context, Context],
+    original_start: Context,
+) -> int:
+    for i, (S, P) in enumerate(zip(Slist, Plist)):
+        if i == 0:
+            S = original_start
+        derivations = original_pcfg.rules[S][P][0]
+        # Update derivations
+        new_derivations = []
+        for nS in derivations:
+            if nS not in Slist:
+                new_derivations.append(nS)
+            else:
+                if nS in mapping:
+                    new_derivations.append(mapping[nS])
+                else:
+                    mS = __adapt_ctx__(nS, rule_no)
+                    mapping[nS] = mS
+                    new_derivations.append(mS)
+                    rule_no += 1
+        derivations = new_derivations
+        # Update current S
+        if i > 0:
+            S = mapping[S]
+        else:
+            S = Slist[0]
+        # Add rule
+        rules[S] = {}
+        rules[S][P] = derivations, 1
+    return rule_no
+
+
+def __pcfg_from__(original_pcfg: PCFG, group: List[Node]) -> PCFG:
     # Find the common prefix to all
-    min_prefix: cons_list = group[0][-1]
-    for _, _, x, deriv_prefix in group[1:]:
-        min_prefix = __common_prefix__(min_prefix, deriv_prefix)
-        # print("\t", x)
+    min_prefix = copy.deepcopy(group[0].derivation_history)
+    for node in group[1:]:
+        min_prefix = __common_prefix__(min_prefix, node.derivation_history)
 
-    # for _, _, x, _ in group:
-    #     for _, _ , y, _ in group:
-    #         print("x=", x, "y=",y, "compatible=", __are_compatible__(original_pcfg, x, y))
-    assert min_prefix is not None
     # Extract the start symbol
-    start, min_prefix = min_prefix
-    # print("Min_prefix=", (start, min_prefix))
-    # print("Max program prefix:", group[0][2])
-    # print("Start=", start)
-    # Mark all paths that should be filled
-    to_fill = []
-    rules = {start: {}}
-    for _, args, program, prefix in group:
+    start = min_prefix.pop()
+
+    rules: Dict[Context, Dict[Program, Tuple[List[Context], float]]] = {}
+    rule_no: int = (
+        max(
+            max(x[1] for x in key.predecessors) if key.predecessors else 0
+            for key in original_pcfg.rules
+        )
+        + 1
+    )
+    mapping: Dict[Context, Context] = {}
+    # Our min_prefix may be something like (int, 1, (+, 1))
+    # which means we already chose +
+    # But it is not in the PCFG
+    # Thus we need to add it
+    # In the general case we may as well have + -> + -> + as prefix this whole prefix needs to be added
+    original_start = start
+    if len(min_prefix) > 0:
+        Slist = group[0].derivation_history[: len(min_prefix) + 1]
+        Plist = group[0].program[: len(min_prefix) + 1]
+        rule_no = __create_path__(
+            rules, original_pcfg, rule_no, Slist, Plist, mapping, Slist[0]
+        )
+        original_start = Slist[-1]
+        start = mapping[original_start]
+
+    # Now we need to make a path from the common prefix to each node's prefix
+    # We also need to mark all contexts that should be filled
+    to_fill: List[Context] = []
+    for node in group:
+        args, program, prefix = (
+            node.next_contexts,
+            node.program,
+            node.derivation_history,
+        )
         # Create rules to follow the path
-        ctx_path: List = cons_list2list(__remove_prefix__(prefix, (start, min_prefix)))[::-1]
-        program_path: List = cons_list2list(__remove_prefix__(program, min_prefix))[::-1]
-        for i, P in enumerate(program_path):
-            current = start if i == 0 else ctx_path[i - 1]
-            if current not in rules:
-                rules[current] = {}
-            rules[current][P] = original_pcfg.rules[current][P][0], 10 # 10 because in logprobs and probs it doesn't make sense so easy to see an error
-            # print("\t", current, "->", P)
+        i = prefix.index(original_start)
+        ctx_path = prefix[i:]
+        program_path = program[i:]
+        if len(ctx_path) > 0:
+            ctx_path[0] = start
+            rule_no = __create_path__(
+                rules,
+                original_pcfg,
+                rule_no,
+                ctx_path,
+                program_path,
+                mapping,
+                original_start,
+            )
         # If there is no further derivation
         if not args:
             continue
         # Next derivation should be filled
-        # print("From", program, "args:", args)
         for arg in args:
             to_fill.append(arg)
-        
+
     # At this point rules can generate all partial programs
     # Get the S to normalize by descending depth order
-    to_normalise = sorted(list(rules.keys()), key=lambda x: x[-1])
-    # print("To normalise:", to_normalise)
-    # print("To fill:", [x[1][0] for x in to_fill])
+    to_normalise = sorted(list(rules.keys()), key=lambda x: -x.depth)
 
     # Build rules from to_fill
     while to_fill:
         S = to_fill.pop()
-        # print("\tFilling:", S)
         rules[S] = {}
         for P in original_pcfg.rules[S]:
             args, w = original_pcfg.rules[S][P]
-            rules[S][P] = (args[:], w) # copy list
+            rules[S][P] = (args[:], w)  # copy list
             for arg in args:
                 if arg not in rules:
                     to_fill.append(arg)
-    # So far so good works as expected
-
     # At this point we have all the needed rules
     # However, the probabilites are incorrect
     while to_normalise:
         S = to_normalise.pop()
+        if S not in original_pcfg.rules:
+            continue
         # Compute the updated probabilities
         for P in list(rules[S]):
             args, _ = rules[S][P]
             # We have the following equation:
             # (1) w = old_w * remaining_fraction
             old_w = original_pcfg.rules[S][P][1]
-            remaining_fraction = 1
+            remaining_fraction: float = 1
             # If there is a next derivation use it to compute the remaining_fraction
             if args:
                 N = args[-1]
                 remaining_fraction = sum(rules[N][K][1] for K in rules[N])
             # Update according to Equation (1)
-            rules[S][P] = args, old_w  * remaining_fraction
+            rules[S][P] = args, old_w * remaining_fraction
 
         # The updated probabilities may not sum to 1 so we need to normalise them
         # But let PCFG do it with clean=True
 
-    min_depth: int = start[-1]
-    program_prefix: cons_list = cons_list_split(group[0][2], length(group[0][2]) - length(min_prefix))[1]
-    # print("Program prefix=", program_prefix)
-
-    # Now our min_prefix may be something like MAP, which takes 2 arguments 
-    # but the generators need to know that the start symbol is simply not (?, (MAP, 1), 1)
-    # that is there must be a (?, (MAP, 0), 1) generated afterwards
-
-    # Compute missing arguments to generate
-    derivations = cons_list2list(min_prefix)[::-1]
-    program_path = cons_list2list(program_prefix)[::-1]
-    stack = []
-    for S, P in zip(derivations, program_path):
-        argsP, w = original_pcfg.rules[S][P]
-        if stack:
-            Sp, Pp, n = stack.pop()
-            if n > 1:
-                stack.append((Sp, Pp, n - 1))
-        if len(argsP) > 0:
-            stack.append((S, P, len(argsP)))
-    # We are missing start so we have to do it manually
-    if stack:
-        Sp, Pp, n = stack.pop()
-        if n > 1:
-            stack.append((Sp, Pp, n - 1))
-            
-    # print("derivations=", derivations)
-    # print("program_path=", program_path)
-    # print("stack=", stack)
-    # Stack contains all the HOLES
-    l = length(min_prefix)
-    i = -1
-    while stack:
-        S, P, n = stack.pop()
-        start = S
-        while True:
-            St, Pt = derivations[i], program_path[i]
-            i -= 1
-            rules[St] = {Pt: (original_pcfg.rules[St][Pt][0], 1.0)}
-            if St == S and Pt == P:
-                break
-        # rules[start] = {P: (original_pcfg.rules[start][P], 1.0)}
-    l += i + 1
-
-    # print("start=", start)
-    min_depth: int = start[-1]
-    program_prefix: cons_list = cons_list_split(
-        group[0][2], length(group[0][2]) - l)[1]
+    start = original_pcfg.start
 
     # Ensure rules are depth ordered
-    rules = {key: rules[key] for key in sorted(
-        list(rules.keys()), key=lambda x: x[-1])}
+    rules = {
+        key: rules[key] for key in sorted(list(rules.keys()), key=lambda x: x.depth)
+    }
 
-    # Update max depth
-    max_depth: int = original_pcfg.max_program_depth - min_depth
-    # print("Symbols=", list(rules.keys()))
-
-    return program_prefix, PCFG(start, rules, max_depth, clean=True)
+    return PCFG(start, rules, original_pcfg.max_program_depth, clean=True)
 
 
-
-def __node_split__(pcfg: PCFG, node: NodeData) -> Tuple[bool, List[NodeData]]:
+def __node_split__(pcfg: PCFG, node: Node) -> Tuple[bool, List[Node]]:
     """
     Split the specified node accordingly.
 
-    Return: success, nodes: 
+    Return: success, nodes:
     - True, list of children nodes
     - False, [node]
     """
-    output = []
-    prob, derivations, program, deriv_history = node
-    # If there is no more derivation then it means this node can't be split
-    if len(derivations) == 0:
+    output: List[Node] = []
+    next_contexts = node.next_contexts
+    # If there is no next then it means this node can't be split
+    if len(next_contexts) == 0:
         return False, [node]
-    derivation: Context = derivations.pop()
-    for P in pcfg.rules[derivation]:
-        args, p_prob = pcfg.rules[derivation][P]
-        new_root = (prob * p_prob, derivations + args,
-                    (P, program), (derivation, deriv_history))
+    new_context: Context = next_contexts.pop()
+    for P in pcfg.rules[new_context]:
+        args, p_prob = pcfg.rules[new_context][P]
+        new_root = Node(
+            node.probability * p_prob,
+            next_contexts + args,
+            node.program + [P],
+            node.derivation_history + [new_context],
+        )
         output.append(new_root)
     return True, output
 
-def __threshold_split_nodes__(pcfg: PCFG, threshold: float, root: Optional[NodeData] = None) -> List[NodeData]:
+
+def __split_nodes_until_quantity_reached__(
+    pcfg: PCFG, quantity: int
+) -> List[Node]:
     """
-    Start from the root node and split most probable node until the most probable node is inferior in logprobs to the threshold in logprobs.
+    Start from the root node and split most probable node until the threshold number of nodes is reached.
     """
-    nodes: List[NodeData] = root or  [(1, [pcfg.start], None, None)]
-    # Split nodes until their probability is less than the threshold
-    while nodes[-1][0] > threshold:
+    nodes: List[Node] = [Node(1.0, [pcfg.start], [], [])]
+    while len(nodes) < quantity:
         i = 1
         success, new_nodes = __node_split__(pcfg, nodes.pop())
         while not success:
+            i += 1
             nodes.append(new_nodes[0])
-            i += 1
             success, new_nodes = __node_split__(pcfg, nodes.pop(-i))
         for new_node in new_nodes:
             insertion_index: int = bisect.bisect(nodes, new_node)
@@ -217,277 +247,230 @@ def __threshold_split_nodes__(pcfg: PCFG, threshold: float, root: Optional[NodeD
     return nodes
 
 
-def __quantity_split_nodes__(pcfg: PCFG, threshold: int, root: Optional[NodeData] = None) -> List[NodeData]:
-    """
-    Start from the root node and split most probable node until the threshold number of ndoes is reached.
-    """
-    nodes: List[NodeData] = root or [(1, [pcfg.start], None, None)]
-    while len(nodes) < threshold:
-        i = 1
-        success, new_nodes = __node_split__(pcfg, nodes.pop())
-        while not success:
-            i += 1
-            success, new_nodes = __node_split__(pcfg, nodes.pop(-i))
-        for new_node in new_nodes:
-            insertion_index: int = bisect.bisect(nodes, new_node)
-            nodes.insert(insertion_index, new_node)
-
-    return nodes
-
-
-def __get_context_holes__(pcfg, p: cons_list) -> List[Context]:
-    lp = cons_list2list(p)
+def __holes_of__(pcfg: PCFG, node: Node) -> List[Context]:
     stack = [pcfg.start]
-    while lp:
+    current = node.program[:]
+    while current:
         S = stack.pop()
-        P = lp.pop()
+        P = current.pop(0)
         args = pcfg.rules[S][P][0]
         for arg in args:
             stack.append(arg)
     return stack
 
 
-def __is_fixing_one_of__(pcfg, p: cons_list, to_fix: List[Context]) -> bool:
-    lp = cons_list2list(p)
+def __is_fixing_any_hole__(
+    pcfg: PCFG, node: Node, holes: List[Context]
+) -> bool:
+    current = node.program[:]
     stack = [pcfg.start]
-    while lp:
+    while current:
         S = stack.pop()
-        if S in to_fix:
+        if S in holes:
             return True
-        P = lp.pop()
+        P = current.pop(0)
         args = pcfg.rules[S][P][0]
         for arg in args:
             stack.append(arg)
     return False
 
 
-def __are_compatible__(pcfg, pa: cons_list, pb: cons_list) -> bool:
+def __are_compatible__(pcfg: PCFG, node1: Node, node2: Node) -> bool:
     """
-    Check if the two prefix program const list are compatible
-    i.e. if one of them does not fix a HOLE of the other (with the same context)
+    Two nodes prefix are compatible if one does not fix a context for the other.
+    e.g. a -> b -> map -> *  and c -> b -> map -> +1 -> * are incompatible.
+
+    In both cases map have the same context (bigram context) which is ((predecessor=b, argument=0), depth=2) thus are indistinguishables.
+    However in the former all derivations are allowed in this context whereas in the latter +1 must be derived.
+    Thus we cannot create a CFG that enables both.
     """
-    holes_a = __get_context_holes__(pcfg, pa)
-    if __is_fixing_one_of__(pcfg, pb, holes_a):
+    holes1 = __holes_of__(pcfg, node1)
+    if __is_fixing_any_hole__(pcfg, node2, holes1):
         return False
-    holes_b = __get_context_holes__(pcfg, pb)
-    return not __is_fixing_one_of__(pcfg, pa, holes_b)
+    holes2 = __holes_of__(pcfg, node2)
+    return not __is_fixing_any_hole__(pcfg, node1, holes2)
 
 
-def all_compatible(pcfg, pa, lpb, i):
+def __all_compatible__(pcfg: PCFG, node: Node, group: List[Node]) -> bool:
+    return all(__are_compatible__(pcfg, node, node2) for node2 in group)
 
-    for j, pb in enumerate(lpb):
-        if i == j:
-            continue
-        if not __are_compatible__(pcfg, pa, pb):
-            return False
+
+def __try_split_node_in_group__(
+    pcfg: PCFG, prob_groups: List[List], group_index: int
+) -> bool:
+    group_a: List[Node] = prob_groups[group_index][1]
+    # Sort group by ascending probability
+    group_a_bis = sorted(group_a, key=lambda x: x.probability)
+    # Try splitting a node until success
+    i = 1
+    success, new_nodes = __node_split__(pcfg, group_a_bis[-i])
+    while not success and i < len(group_a):
+        i += 1
+        success, new_nodes = __node_split__(pcfg, group_a_bis[-i])
+    if i >= len(group_a):
+        return False
+    # Success, remove old node
+    group_a.pop(-i)
+    # Add new nodes
+    for new_node in new_nodes:
+        group_a.append(new_node)
     return True
 
 
-def threshold_exchange_split(pcfg: PCFG, splits: int, alpha: float = 2):
-    nodes = __threshold_split_nodes__(pcfg, alpha /splits)
-    # Create groups
-    groups = []
-    for node in nodes[:splits - 1]:
-        groups.append([node])
-    groups.append(nodes[splits - 1:])
+def __find_swap_for_group__(
+    pcfg: PCFG, prob_groups: List[List], group_index: int
+) -> Optional[Tuple[int, Optional[int], int]]:
+    max_prob: float = prob_groups[-1][1]
+    min_prob: float = prob_groups[0][1]
+    group_a, prob = prob_groups[group_index]
+    best_swap: Optional[Tuple[int, Optional[int], int]] = None
+    current_score: float = max_prob / prob
 
-    def __exchange__(groups, masses, a, b):
-        group_a = groups[a]
-        group_b = groups[b]
-        current_score = masses[a] / masses[b]
-        best_swap = None
+    candidates = (
+        list(range(len(prob_groups) - 1, group_index, -1))
+        if group_index == 0
+        else [len(prob_groups) - 1]
+    )
 
-        for i, ela in enumerate(group_a):
-            pa = ela[0]
-            red_mass_a = masses[a] - pa
-            for j, elb in enumerate(group_b):
-                pb = elb[0]
-                if not all_compatible(pcfg, ela[2], group_b, j) or not all_compatible(pcfg, elb[2], group_a, i):
+    for i in candidates:
+        group_b, prob_b = prob_groups[i]
+        for j, node_a in enumerate(group_a):
+            pa: float = node_a.probability
+            reduced_prob: float = prob - pa
+            # Try all swaps
+            for k, node_b in enumerate(group_b):
+                pb: float = node_b.probability
+                if (
+                    pb < pa
+                    or not __all_compatible__(pcfg, node_a, group_b)
+                    or not __all_compatible__(pcfg, node_b, group_a)
+                ):
                     continue
-                new_mass_b = masses[b] - pb + pa
-                new_score = (red_mass_a + pb) / new_mass_b
-                if new_score <= 0:
-                    continue
-                if new_score < 1:
-                    new_score = 1/ new_score
+                new_mass_b: float = prob_b - pb + pa
+                mini = min_prob if group_index > 0 else reduced_prob + pb
+                maxi = (
+                    max(new_mass_b, prob_groups[-2][1])
+                    if j == len(prob_groups) - 1
+                    else max_prob
+                )
+                new_score = maxi / mini
                 if new_score < current_score:
-                    best_swap = (i, j)
+                    best_swap = (i, j, k)
                     current_score = new_score
-            # Consider giving out
-            if not all_compatible(pcfg, ela[2], group_b, -1):
+        # Consider taking something from b
+        for k, node_b in enumerate(group_b):
+            if not __all_compatible__(pcfg, node_b, group_a):
                 continue
-            new_score = red_mass_a / (masses[b] + pa)
-            if new_score <= 0:
-                continue
-            if new_score < 1:
-                new_score = 1/ new_score
+            pb = node_b.probability
+            if prob + pb > max_prob:
+                new_score = (prob + pb) / min_prob
+            else:
+                new_score = max_prob / (prob + pb)
             if new_score < current_score:
-                best_swap = (i, None)
+                best_swap = (i, None, k)
                 current_score = new_score
-        if best_swap is None:
-            return False
-        i, j = best_swap
-        if j is not None:
-            group_a[i], group_b[j] = group_b[j], group_a[i]
-        else:
-            group_b.append(group_a.pop(i))
-            
-        return True
+    return best_swap
+
+
+def __percolate_down__(prob_groups: List[List], group_index: int) -> None:
+    index = group_index
+    p = prob_groups[group_index][1]
+    while index > 0 and prob_groups[index - 1][1] > p:
+        prob_groups[index - 1], prob_groups[index] = (
+            prob_groups[index],
+            prob_groups[index - 1],
+        )
+        index -= 1
+
+
+def __percolate_up__(prob_groups: List[List], group_index: int) -> None:
+    index = group_index
+    p = prob_groups[group_index][1]
+    while index < len(prob_groups) - 2 and prob_groups[index + 1][1] < p:
+        prob_groups[index + 1], prob_groups[index] = (
+            prob_groups[index],
+            prob_groups[index + 1],
+        )
+        index += 1
+
+
+def __apply_swap__(
+    prob_groups: List[List], group_index: int, swap: Tuple[int, Optional[int], int]
+) -> None:
+    j, k, l = swap
+    # App
+    if k:
+        node_a = prob_groups[group_index][0].pop(k)
+        prob_groups[group_index][1] -= node_a.probability
+        prob_groups[j][0].append(node_a)
+        prob_groups[j][1] += node_a.probability
+
+    node_b = prob_groups[j][0].pop(l)
+    prob_groups[j][1] -= node_b.probability
+    prob_groups[group_index][0].append(node_b)
+    prob_groups[group_index][1] += node_b.probability
+
+    __percolate_down__(prob_groups, -1)
+    __percolate_up__(prob_groups, group_index)
+
+
+def __split_into_nodes__(
+    pcfg: PCFG, splits: int, desired_ratio: float = 2
+) -> Tuple[List[List[Node]], float]:
+    nodes = __split_nodes_until_quantity_reached__(pcfg, splits)
+
+    # Create groups
+    groups: List[List[Node]] = []
+    for node in nodes[:splits]:
+        groups.append([node])
+    for node in nodes[splits:]:
+        # Add to first compatible group
+        added = False
+        for group in groups:
+            if __all_compatible__(pcfg, node, group):
+                group.append(node)
+                added = True
+                break
+        assert added
+
     # Improve
     improved = True
-    masses = [np.sum([x[0] for x in group]) for group in groups]
-    while improved:
-        best = np.argmax(masses)
-        worst = np.argmin(masses)
-        improved = __exchange__(groups, masses, best, worst)
-        masses[best] = np.sum([x[0] for x in groups[best]])
-        masses[worst] = np.sum([x[0] for x in groups[worst]])
-
-    return groups
-
-
-def exchange_split(pcfg: PCFG, splits: int, alpha: float = 2):
-    nodes = __quantity_split_nodes__(pcfg, splits)
-    # Create groups
-    groups = []
-    for node in nodes[:splits - 1]:
-        groups.append([node])
-    groups.append(nodes[splits - 1:])
-
-    def __try_split__(groups, a):
-        group_a = groups[a]
-        group_a_bis = sorted(group_a, key=lambda x: x[0])
-        i = 1
-        success, new_nodes = __node_split__(pcfg, group_a_bis.pop())
-        while not success and i < len(group_a):
-            i += 1
-            success, new_nodes = __node_split__(pcfg, group_a_bis.pop())
-        if i > len(group_a):
-            return False
-        group_a.pop(-i)
-        for new_node in new_nodes:
-            group_a.append(new_node)
-
-        return True
-
-    def __exchange__(groups, masses, a, b, splits_done=0):
-        group_a = groups[a]
-        if len(group_a) == 1 and splits_done <= 0:
-            return __try_split__(groups, a) and __exchange__(groups, masses, a, b, splits_done+1)
-        group_b = groups[b]
-        if len(group_b) == 1 and splits_done <= 0:
-            return __try_split__(groups, b) and __exchange__(groups, masses, a, b,  splits_done+1)
-        current_score = masses[a] / masses[b]
-        best_swap = None
-
-        for i, ela in enumerate(group_a):
-            pa = ela[0]
-            red_mass_a = masses[a] - pa
-            for j, elb in enumerate(group_b):
-                if not all_compatible(pcfg, ela[2], group_b, j) or not all_compatible(pcfg, elb[2], group_a, i):
-                    continue
-                pb = elb[0]
-                new_mass_b = masses[b] - pb + pa
-                new_score = (red_mass_a + pb) / new_mass_b
-                if new_score <= 0:
-                    continue
-                if new_score < 1:
-                    new_score = 1 / new_score
-                if new_score < current_score:
-                    best_swap = (i, j)
-                    current_score = new_score
-            # Consider giving out
-            if not all_compatible(pcfg, ela[2], group_b, -1):
-                continue
-            new_score = red_mass_a / (masses[b] + pa)
-            if new_score <= 0:
-                continue
-            if new_score < 1:
-                new_score = 1 / new_score
-            if new_score < current_score:
-                best_swap = (i, None)
-                current_score = new_score
-        if best_swap is None:
-            if current_score > alpha:   
-                if splits_done > 0:
-                    return False       
-                return __try_split__(groups, a) and __exchange__(groups, masses, a, b, splits_done+1)
-            return False
-        i, j = best_swap
-        if j is not None:
-            group_a[i], group_b[j] = group_b[j], group_a[i]
-        else:
-            group_b.append(group_a.pop(i))
-
-        return True
-    # Improve
-    improved = True
-    masses = [np.sum([x[0] for x in group]) for group in groups]
-    while improved:
-        best = np.argmax(masses)
-        worst = np.argmin(masses)
-        improved = __exchange__(groups, masses, best, worst)
-        if improved:
-            masses[best] = np.sum([x[0] for x in groups[best]])
-            masses[worst] = np.sum([x[0] for x in groups[worst]])
-
-    return groups
+    masses: List[float] = [
+        np.sum([x.probability for x in group]) for group in groups]
+    prob_groups = sorted([[g, p] for g, p in zip(
+        groups, masses)], key=lambda x: x[1])  # type: ignore
+    ratio: float = prob_groups[-1][1] / prob_groups[0][1]  # type: ignore
+    while improved and ratio > desired_ratio:
+        improved = False
+        for i in range(splits - 1):
+            swap = __find_swap_for_group__(pcfg, prob_groups, i)
+            if swap:
+                improved = True
+                __apply_swap__(prob_groups, i, swap)
+                break
+        if not improved:
+            for i in range(splits - 1, 0, -1):
+                improved = __try_split_node_in_group__(pcfg, prob_groups, i)
+                if improved:
+                    break
+        ratio = prob_groups[-1][1] / prob_groups[0][1]  # type: ignore
+    return [g for g, _ in prob_groups], ratio  # type: ignore
 
 
-def split(pcfg: PCFG, splits: int, **kwargs):
+def split(
+    pcfg: PCFG, splits: int, alpha: float = 1.1
+) -> Tuple[List[PCFG], float]:
     """
     Currently use exchange split.
-    Additional parameter:
-    alpha: the max ratio authorized between the most probable group and the least probable
+    Parameters:
+    alpha: the max ratio authorized between the most probable group and the least probable pcfg
 
     Return:
-    a list of Tuple[prefix program cons_list, PCFG]
+    a list of PCFG
+    the reached threshold
     """
     if splits == 1:
-        return [(None, pcfg)]
-    return [__pcfg_from__(pcfg, group) for group in exchange_split(pcfg, splits, **kwargs)]
-
-if __name__ == "__main__":
-    import dsl
-    from DSL.deepcoder import *
-    deepcoder = dsl.DSL(semantics, primitive_types)
-    type_request = Arrow(List(INT), List(INT))
-    np.random.seed(0)
-    deepcoder_CFG = deepcoder.DSL_to_CFG(type_request)
-
-    alpha_threshold = 1
-    max_ratio = 1.01
-
-    methods = [
-        ("threshold exchange", lambda pcfg, splits: threshold_exchange_split(pcfg, splits, alpha_threshold)),
-        ("exchange", lambda pcfg, splits: exchange_split(pcfg, splits, max_ratio)),
-        ]
-    splits = 20
-    print("Parameters:")
-    print("\tsplits=", splits)
-    print("\talpha_threshold=", alpha_threshold)
-    print("\tmax_ratio=", max_ratio)
-    import tqdm
-    samples = 1
-    data = {}
-    for name, fun in methods:
-        data[name] = []
-    for i in tqdm.trange(samples):
-        deepcoder_PCFG = deepcoder_CFG.CFG_to_Random_PCFG(alpha=1.0)
-        for name, fun in methods:
-            groups = fun(deepcoder_PCFG, splits)
-            group_mass = [np.sum([l for l, _, _, _ in group]) for group in groups]
-            ratio = np.max(group_mass) / np.min(group_mass)
-            data[name].append(ratio)
-    for name, values in data.items():
-        print(name, ":")
-        print("\tmean:", np.mean(values))
-        print("\tmedian:", np.median(values))
-        print("\tmax:", np.max(values))
-        print("\tmin:", np.min(values))
-        print("\tvariance:", np.var(values))
-
-
-    for name, fun in methods:
-        groups = fun(deepcoder_PCFG, splits)
-        [__pcfg_from__(deepcoder_PCFG, group) for group in groups]
+        return [pcfg], 1
+    assert alpha > 1, "The desired ratio must be > 1!"
+    groups, ratio = __split_into_nodes__(pcfg, splits, alpha)
+    return [__pcfg_from__(pcfg, group) for group in groups if len(group) > 0], ratio
