@@ -333,6 +333,13 @@ class BigramsPredictor(nn.Module):
                         rules[S][P] = rules[S][P][0], normalised_variable_logprob
                         normalised_variable_logprob = np.log(
                             np.exp(normalised_variable_logprob) - 1e-7)
+                else:
+                    # We still need to normalise probabilities
+                    # Since all derivations aren't possible
+                    total = sum(np.exp(rules[S][P][1].item()) for P in rules[S])
+                    to_add = np.log(1 / total)
+                    for O in rules[S]:
+                        rules[S][O] = rules[S][O][0], rules[S][O][1] + to_add
             grammar = LogProbPCFG(cfg.start,
                                   rules,
                                   max_program_depth=cfg.max_program_depth)
