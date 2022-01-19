@@ -42,7 +42,7 @@ Programming by example seeks to make programming more reliable and accessible by
 `DeepSynth` includes a number of predictions-guided search algorithms; the most efficient is `HeapSearch`.
 The search can be parallelised thanks to a new approach to partition the grammar and search through each part of the partition independently.
 
-![Pipeline for neural predictions for syntax guided program synthesis.\label{fig:description}](sygus.svg)
+![Pipeline for neural predictions for syntax guided program synthesis.\label{fig:description}](sygus.png)
 
 # How it works?
 
