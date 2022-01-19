@@ -31,7 +31,7 @@ bibliography: paper.bib
 
 Writing software is tedious, error-prone, and accessible only to a small share of the population -- yet coding grows increasingly important as the digital world plays larger and larger roles in peoples’ lives.
 Programming by example seeks to make programming more reliable and accessible by allowing non-technical users to specify programs only from pairs of input-output examples.
-`DeepSynth` is a general-purpose programming by example tool, which combines predictions from neural networks with the symbolic methods to generate programs, combining the benefits of both worlds to make program synthesis scalable with guarantees. 
+`DeepSynth` is a general purpose programming by example tool, which combines predictions from neural networks with symbolic methods to generate programs. 
 `DeepSynth` was used for the experiments of the recently published @Fijalkow:2021.
 
 # Statement of need
@@ -40,13 +40,13 @@ Programming by example seeks to make programming more reliable and accessible by
 \autoref{fig:description} illustrates the machine learning pipeline on a toy DSL describing integer list manipulating programs. 
 `DeepSynth` leverages PyTorch [@pytorch]: a neural network reads the examples and outputs predictions to guide the search towards likely programs.
 `DeepSynth` includes a number of predictions-guided search algorithms; the most efficient is `HeapSearch`.
-The search can be parallelised thanks to a new approach to divide the partition the grammar and search through them independently in each CPUs.
+The search can be parallelised thanks to a new approach to partition the grammar and search through each part of the partition independently.
 
 ![Pipeline for neural predictions for syntax guided program synthesis.\label{fig:description}](main_figure.png)
 
 # How it works?
 
-The user first specifies a DSL by giving a set of primitives together with their type and semantics, as well as semantic and syntaxic constraints (such as program depth).
+The user first specifies a DSL by giving a set of primitives together with their types and semantics, as well as semantic and syntactic constraints (such as program depth).
 `DeepSynth` includes end to end procedures for training a neural network that makes predictions from examples. The predictions are given as distributions on the derivation rules of the context free grammar (CFG) representing the set of programs.
 
 Once the DSL is specified and the prediction model trained, `DeepSynth` can be used as follows: the end user gives a few input-output examples, and `DeepSynth` searches for a program matching the examples.
