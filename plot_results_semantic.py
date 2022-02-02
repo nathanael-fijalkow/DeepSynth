@@ -100,7 +100,7 @@ for algo, data in processed_data.items():
     print(f"{algo:<15} {programs_per_sec:.0f} prog/s")
 if plot_max:
     plt.hlines([total_tasks], label="All tasks",
-            color=f"C{len(processed_data)}", linestyles="dashed", xmin=0, xmax=time_max)
+            color="k", linestyles="dashed", xmin=0, xmax=time_max)
 plt.xlabel("time (in seconds)")
 plt.ylabel("tasks completed")
 plt.xlim(0, time_max * 1.02)
@@ -108,7 +108,7 @@ if plot_max:
     plt.ylim(0, total_tasks + 2)
 else:
     plt.ylim(0)
-
+plt.grid()
 plt.legend()
 plt.savefig(f"results_semantics/machine_learned_{dataset}.png",
 		dpi=500, 

@@ -328,6 +328,7 @@ def plot_programs_vs_time():
     plt.yscale('log')
     # plt.ylim((0, max_number_programs))
     plt.ylabel('number of programs')
+    plt.grid()
 
     plt.savefig("results_syntactic/programs_vs_time_%s_parallel.png" % seed,
                 dpi=500,

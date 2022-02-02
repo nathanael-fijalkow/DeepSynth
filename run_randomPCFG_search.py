@@ -198,6 +198,7 @@ def plot_cumulative_probability_vs_time():
 	plt.xscale('log')
 	plt.ylim((0,1))
 	plt.ylabel('cumulative probability')
+	plt.grid()
 
 	plt.savefig("results_syntactic/cumulative_probability_vs_time_%s.png" % seed,
 		dpi=500, 
@@ -208,6 +209,7 @@ def plot_cumulative_probability_vs_time():
 # Plot cumulative probability VS number of programs
 def plot_cumulative_probability_vs_number_programs():
 	logging.info('Plot cumulative probability VS number of programs')
+	plt.style.use('seaborn-colorblind')
 	countpoints = np.linspace(start = 0, stop = max_number_programs, num = number_countpoints)
 
 	for algo_index in range(len(list_algorithms)):
@@ -242,6 +244,7 @@ def plot_cumulative_probability_vs_number_programs():
 	plt.ylabel('cumulative probability')
 	plt.ylim((0,1))
 	plt.legend(loc = 'lower right')
+	plt.grid()
 
 	plt.savefig("results_syntactic/cumulative_probability_vs_number_programs_%s.png" % seed, 
 		dpi=500, 
