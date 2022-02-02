@@ -148,6 +148,7 @@ def plot():
 	plt.ticklabel_format(axis='y', style='sci')
 	plt.ylabel('number of programs')
 	plt.yscale('log')
+	plt.grid()
 
 	plt.savefig("results_syntactic/comparison_heapsearch_astar_%s.png" % (seed), 
 		dpi=500, 
