@@ -47,31 +47,31 @@ class TestSum(unittest.TestCase):
         env = ([2, 4], None)
         self.assertTrue(p1.eval(toy_DSL, env, 0) == [3, 5])
 
-    def test_evaluation_from_compressed(self):
-        """
-        Check if evaluation_from_compressed evaluates correctly the programs
-        """
-        N = 20_000  # we test against the first N programs
+    # def test_evaluation_from_compressed(self):
+    #     """
+    #     Check if evaluation_from_compressed evaluates correctly the programs
+    #     """
+    #     N = 20_000  # we test against the first N programs
 
-        deepcoder = DSL(semantics, primitive_types)
-        type_request = Arrow(List(INT), List(INT))
-        deepcoder_CFG = deepcoder.DSL_to_CFG(type_request)
-        deepcoder_PCFG = deepcoder_CFG.CFG_to_Random_PCFG()
+    #     deepcoder = DSL(semantics, primitive_types)
+    #     type_request = Arrow(List(INT), List(INT))
+    #     deepcoder_CFG = deepcoder.DSL_to_CFG(type_request)
+    #     deepcoder_PCFG = deepcoder_CFG.CFG_to_Random_PCFG()
 
-        gen_a_star = a_star(deepcoder_PCFG)
+    #     gen_a_star = a_star(deepcoder_PCFG)
 
-        environment = ([2, 3, 1], None)
+    #     environment = ([2, 3, 1], None)
 
-        r = type_request.returns()
-        for i in range(N):
-            program_compressed = next(gen_a_star)
-            program = reconstruct_from_compressed(program_compressed, r)
-            program_as_list = []
-            eval_from_compressed = evaluation_from_compressed(
-                program_compressed, deepcoder, environment, r
-            )
-            eval_from_program = program.eval_naive(deepcoder, environment)
-            self.assertEqual(eval_from_compressed, eval_from_program)
+    #     r = type_request.returns()
+    #     for i in range(N):
+    #         program_compressed = next(gen_a_star)
+    #         program = reconstruct_from_compressed(program_compressed, r)
+    #         program_as_list = []
+    #         eval_from_compressed = evaluation_from_compressed(
+    #             program_compressed, deepcoder, environment, r
+    #         )
+    #         eval_from_program = program.eval_naive(deepcoder, environment)
+    #         self.assertEqual(eval_from_compressed, eval_from_program)
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
