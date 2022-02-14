@@ -13,7 +13,7 @@ from program import Program, Function, Variable, BasicPrimitive, New
 from dsl import DSL
 from pcfg_logprob import LogProbPCFG
 from Predictions.IOencodings import FixedSizeEncoding, VariableSizeEncoding
-from Predictions.embeddings import SimpleEmbedding#, RecurrentEmbedding
+from Predictions.embeddings import RNNEmbedding, SimpleEmbedding#, RecurrentEmbedding
 
 logging_levels = {0:logging.INFO, 1:logging.DEBUG}
 
@@ -23,11 +23,11 @@ logging.basicConfig(format='%(message)s', level=logging_levels[verbosity])
 class TestSum(unittest.TestCase):
     def test_encoding(self):
         size_max = 2 # maximum number of elements in an input (= list)
-        nb_inputs_max = 5 # maximum number of inputs 
+        nb_arguments_max = 5 # maximum number of inputs 
         lexicon = list(range(30))
 
         IOEncoder = FixedSizeEncoding(
-            nb_inputs_max = nb_inputs_max,
+            nb_arguments_max = nb_arguments_max,
             lexicon = lexicon,
             size_max = size_max,
             )
@@ -36,7 +36,7 @@ class TestSum(unittest.TestCase):
         # only useful for VariableSizeEncoding
 
         IOEncoder2 = VariableSizeEncoding(
-            nb_inputs_max = nb_inputs_max,
+            nb_arguments_max = nb_arguments_max,
             lexicon = lexicon,
             output_dimension = encoding_output_dimension,
             )
@@ -62,11 +62,11 @@ class TestSum(unittest.TestCase):
 
     def test_embedding(self):
         size_max = 2 # maximum number of elements in an input (= list)
-        nb_inputs_max = 5 # maximum number of inputs 
+        nb_arguments_max = 5 # maximum number of inputs 
         lexicon = list(range(30))
 
         IOEncoder = FixedSizeEncoding(
-            nb_inputs_max = nb_inputs_max,
+            nb_arguments_max = nb_arguments_max,
             lexicon = lexicon,
             size_max = size_max,
             )
@@ -75,7 +75,7 @@ class TestSum(unittest.TestCase):
         # only useful for VariableSizeEncoding
 
         IOEncoder2 = VariableSizeEncoding(
-            nb_inputs_max = nb_inputs_max,
+            nb_arguments_max = nb_arguments_max,
             lexicon = lexicon,
             output_dimension = encoding_output_dimension,
             )
@@ -87,14 +87,15 @@ class TestSum(unittest.TestCase):
 
         embedding_output_dimension = 30
 
-        IOEmbedder = SimpleEmbedding(
+        IOEmbedder = RNNEmbedding(
             IOEncoder = IOEncoder,
             output_dimension = embedding_output_dimension,
+            size_hidden = 64,
+            number_layers_RNN = 1
             )
 
-        print("output dimension of the encoder", IOEncoder.output_dimension)
-        res = IOEmbedder.forward_IOs(IOs)
-        self.assertTrue(res.size() == (len(IOs), IOEncoder.output_dimension, IOEmbedder.output_dimension))
+        res = IOEmbedder.forward(batch_IOs)
+        self.assertTrue(res.size() == (len(batch_IOs), IOEncoder.output_dimension * IOEmbedder.output_dimension))
 
         # res = IOEmbedder.forward(batch_IOs)
         # self.assertTrue(res.size() == (len(batch_IOs), IOEncoder.output_dimension, IOEmbedder.output_dimension))
