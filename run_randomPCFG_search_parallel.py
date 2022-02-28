@@ -190,10 +190,10 @@ def run_algorithm_parallel(pcfg: PCFG, algo_index: int, splits: int,
         return new_gen
 
     grammar_split_time = - time.perf_counter()
-    splits = grammar_splitter.split(pcfg, splits, alpha=1.05)
+    splits = grammar_splitter.split(pcfg, splits, alpha=1.05)[0]
     grammar_split_time += time.perf_counter()
     make_generators = [bounded_generator(
-        prefix, pcfg, i) for i, (prefix, pcfg) in enumerate(splits)]
+        None, pcfg, i) for i, pcfg in enumerate(splits)]
 
     def make_filter(i):
         return lambda x: False

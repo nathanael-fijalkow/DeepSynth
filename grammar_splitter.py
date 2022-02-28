@@ -48,8 +48,13 @@ def __common_prefix__(a: List[Context], b: List[Context]) -> List[Context]:
 
 def __adapt_ctx__(S: Context, i: int) -> Context:
     pred = S.predecessors[0]
-    return Context(S.type, [(pred[0], i)] + S.predecessors[1:], S.depth)
+    return Context(S.type, [(pred[0], i)], S.depth)
 
+def __to_original__(S: Context) -> Tuple:
+    return (S.type, S.predecessors[0] if S.predecessors else None, S.depth)
+
+def __from_original__(S: Tuple) -> Context:
+    return  Context(S[0], [S[1]] if S[1] else [], S[2])
 
 def __create_path__(
     rules: PRules,
@@ -57,35 +62,36 @@ def __create_path__(
     rule_no: int,
     Slist: List[Context],
     Plist: List[Program],
-    mapping: Dict[Context, Context],
+    mapping: Dict[Tuple, Context],
     original_start: Context,
 ) -> int:
     for i, (S, P) in enumerate(zip(Slist, Plist)):
         if i == 0:
             S = original_start
-        derivations = original_pcfg.rules[S][P][0]
+        derivations = original_pcfg.rules[__to_original__(S)][P][0]
         # Update derivations
         new_derivations = []
         for nS in derivations:
-            if nS not in Slist:
+            cnS = __from_original__(nS)
+            if cnS not in Slist:
                 new_derivations.append(nS)
             else:
                 if nS in mapping:
-                    new_derivations.append(mapping[nS])
+                    new_derivations.append(__to_original__(mapping[nS]))
                 else:
-                    mS = __adapt_ctx__(nS, rule_no)
+                    mS = __adapt_ctx__(cnS, rule_no)
                     mapping[nS] = mS
-                    new_derivations.append(mS)
+                    new_derivations.append(__to_original__(mS))
                     rule_no += 1
         derivations = new_derivations
         # Update current S
         if i > 0:
-            S = mapping[S]
+            S = mapping[__to_original__(S)]
         else:
             S = Slist[0]
         # Add rule
-        rules[S] = {}
-        rules[S][P] = derivations, 1
+        rules[__to_original__(S)] = {}
+        rules[__to_original__(S)][P] = derivations, 1
     return rule_no
 
 
@@ -101,12 +107,12 @@ def __pcfg_from__(original_pcfg: PCFG, group: List[Node]) -> PCFG:
     rules: Dict[Context, Dict[Program, Tuple[List[Context], float]]] = {}
     rule_no: int = (
         max(
-            max(x[1] for x in key.predecessors) if key.predecessors else 0
-            for key in original_pcfg.rules
+            key[1][1] if key[1] else 0
+            for key in original_pcfg.rules.keys()
         )
         + 1
     )
-    mapping: Dict[Context, Context] = {}
+    mapping: Dict[Tuple, Context] = {}
     # Our min_prefix may be something like (int, 1, (+, 1))
     # which means we already chose +
     # But it is not in the PCFG
@@ -116,11 +122,12 @@ def __pcfg_from__(original_pcfg: PCFG, group: List[Node]) -> PCFG:
     if len(min_prefix) > 0:
         Slist = group[0].derivation_history[: len(min_prefix) + 1]
         Plist = group[0].program[: len(min_prefix) + 1]
+        print("HERE")
         rule_no = __create_path__(
             rules, original_pcfg, rule_no, Slist, Plist, mapping, Slist[0]
         )
         original_start = Slist[-1]
-        start = mapping[original_start]
+        start = mapping[__to_original__(original_start)]
 
     # Now we need to make a path from the common prefix to each node's prefix
     # We also need to mark all contexts that should be filled
@@ -137,6 +144,7 @@ def __pcfg_from__(original_pcfg: PCFG, group: List[Node]) -> PCFG:
         program_path = program[i:]
         if len(ctx_path) > 0:
             ctx_path[0] = start
+            print("THERE", flush=True)
             rule_no = __create_path__(
                 rules,
                 original_pcfg,
@@ -155,7 +163,7 @@ def __pcfg_from__(original_pcfg: PCFG, group: List[Node]) -> PCFG:
 
     # At this point rules can generate all partial programs
     # Get the S to normalize by descending depth order
-    to_normalise = sorted(list(rules.keys()), key=lambda x: -x.depth)
+    to_normalise = sorted(list(rules.keys()), key=lambda x: -x[2])
 
     # Build rules from to_fill
     while to_fill:
@@ -194,7 +202,7 @@ def __pcfg_from__(original_pcfg: PCFG, group: List[Node]) -> PCFG:
 
     # Ensure rules are depth ordered
     rules = {
-        key: rules[key] for key in sorted(list(rules.keys()), key=lambda x: x.depth)
+        key: rules[key] for key in sorted(list(rules.keys()), key=lambda x: x[2])
     }
 
     return PCFG(start, rules, original_pcfg.max_program_depth, clean=True)
@@ -220,7 +228,7 @@ def __node_split__(pcfg: PCFG, node: Node) -> Tuple[bool, List[Node]]:
             node.probability * p_prob,
             next_contexts + args,
             node.program + [P],
-            node.derivation_history + [new_context],
+            node.derivation_history + [__from_original__(new_context)],
         )
         output.append(new_root)
     return True, output

@@ -6,7 +6,7 @@ from program_as_list import evaluation_from_compressed, reconstruct_from_compres
 from dsl import DSL
 from DSL.deepcoder import semantics,primitive_types
 
-from Algorithms.sqrt_sampling import sqrt_sampling_with_sbsur
+from Algorithms.heap_search import heap_search
 # from Algorithms.ray_parallel import make_parallel_pipelines, start
 
 import grammar_splitter
@@ -52,11 +52,11 @@ class TestSum(unittest.TestCase):
     #     def bounded_generator(prefix, pcfg):
     #         # It should be easier for 
     #         def new_gen():
-    #             for p in sqrt_sampling_with_sbsur(pcfg):
-    #                 yield insert_prefix(prefix, p)
+    #             for p in heap_search(pcfg):
+    #                 yield p
     #         return new_gen
     #     make_generators = [bounded_generator(
-    #         prefix, pcfg) for prefix, pcfg in grammar_splitter.split(deepcoder_PCFG, 10)]
+    #         prefix, pcfg) for prefix, pcfg in grammar_splitter.split(deepcoder_PCFG, 10)[0]]
     #     make_filter = lambda: lambda x: True
 
     #     producers, filters, _, out = make_parallel_pipelines(make_generators, make_filter, 2, 1000, 10000, 10)
@@ -96,11 +96,11 @@ class TestSum(unittest.TestCase):
         toy_DSL = DSL(semantics, primitive_types)
         type_request = Arrow(List(INT), List(INT))
         deepcoder_CFG = toy_DSL.DSL_to_CFG(type_request)
-        deepcoder_PCFG = deepcoder_CFG.CFG_to_Random_PCFG(alpha=0.8)
+        deepcoder_PCFG = deepcoder_CFG.CFG_to_Uniform_PCFG()
 
         r = type_request.returns()
 
-        n = 10_0000
+        n = 1_0000
         splits = 4
         programs_per_split = n // splits
 
@@ -115,16 +115,16 @@ class TestSum(unittest.TestCase):
         
         seen_programs = set()
         preceding_sets = set()
-        for prefix, pcfg in grammar_splitter.split(deepcoder_PCFG, splits, alpha=1.05):
+        for pcfg in grammar_splitter.split(deepcoder_PCFG, splits, alpha=1.05)[0]:
             j = 0
             # If there is one single program for this PCFG SBSUR won't generate it because there is no need for sampling
             if all([len(pcfg.rules[S]) == 1 for S in pcfg.rules]):
                 continue
-            for p in sqrt_sampling_with_sbsur(pcfg):
-                cp = insert_prefix(prefix, p)
-                program = reconstruct_from_compressed(cp, r)
+            for p in heap_search(pcfg):
+                cp = p
+                program = cp #reconstruct_from_compressed(cp, r)
                 j += 1
-                if j >= programs_per_split:
+                if j >= programs_per_split or program is None:
                     break
                 self.assertNotIn(program, preceding_sets)
                 self.assertNotIn(program, seen_programs)

@@ -209,8 +209,7 @@ def run_algorithm_parallel(is_correct_program: Callable[[Program, bool], bool], 
                 try:
                     while True:
                         t = -time.perf_counter()
-                        p = next(gen)
-                        prog = insert_prefix(prefix, p)
+                        prog = next(gen)
                         t += time.perf_counter()
                         prog_r = reconstruct_from_compressed(prog, target_type)
                         probability = pcfg.probability_program(pcfg.start, prog_r)
@@ -245,10 +244,10 @@ def run_algorithm_parallel(is_correct_program: Callable[[Program, bool], bool], 
         return new_gen
     
     grammar_split_time = - time.perf_counter()
-    splits = grammar_splitter.split(pcfg, splits, alpha=1.05)
+    splits = grammar_splitter.split(pcfg, splits, alpha=1.05)[0]
     grammar_split_time += time.perf_counter() 
     make_generators = [bounded_generator(
-            prefix, pcfg, i) for i, (prefix, pcfg) in enumerate(splits)]
+            None, pcfg, i) for i, pcfg in enumerate(splits)]
 
     def make_filter(i):
         def evaluate(program):
