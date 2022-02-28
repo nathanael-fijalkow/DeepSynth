@@ -31,27 +31,31 @@ developments in machine-learned program synthesizers._
 git clone https://github.com/nathanael-fijalkow/DeepSynth.git
 
 # create your new env
-conda create -n deep_synth python>=3.7 
+conda create -n deep_synth "python>=3.7" 
 # activate it
 conda activate deep_synth
 # install pip
 yes | conda install pip
 # install this package and the dependencies
-pip install torch cython tqdm numpy matplotlib
+conda install -c conda-forge cython tqdm numpy matplotlib scipy
+conda install -c pytorch "pytorch>=1.8" 
 pip install git+https://github.com/MaxHalford/vose
 # For flashfill dataset
 pip install sexpdata
 # If you want to do the parallel experiments
 pip install ray
 
+# If you run in an ValueError: numpy.ufunc size changed
+pip upgrade numpy
+
 # You are good to go :)
 # To test your installation you can run the following tests:
-python unit_test_algorithms.py
-python unit_test_programs.py
-python unit_test_algorithms.py
-python unit_test_predictions.py
+python unit_tests_algorithms.py
+python unit_tests_programs.py
+python unit_tests_algorithms.py
+python unit_tests_predictions.py
 # Only if you installed ray
-python unit_test_parallel.py
+python unit_tests_parallel.py
 ```
 
 ### File structure
