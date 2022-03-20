@@ -46,7 +46,7 @@ pip install sexpdata
 pip install ray
 
 # If you run in an ValueError: numpy.ufunc size changed
-pip upgrade numpy
+pip install --upgrade numpy
 
 # You are good to go :)
 # To test your installation you can run the following tests:
@@ -74,8 +74,8 @@ All of the files mentioned in this section are located in the root folder and fo
 
 Here is a short summary of each experiment:
 
-- ```run_random_PCFG_search.py``` produce a list of all programs generated under Xsec of search time by all algorithms.
-- ```run_random_PCFG_search_parallel.py``` same experiment but iwth the grammar_splitter and multiple CPUs.
+- ```run_random_PCFGsearch.py``` produce a list of all programs generated under Xsec of search time by all algorithms.
+- ```run_random_PCFGsearch_parallel.py``` same experiment but iwth the grammar_splitter and multiple CPUs.
 - ```run_experiments_<dataset>.py``` try to find solutions using an ANN to predict the grammar and for each algorithm logs the search data for the corresponding ```<dataset>```. The suffix ```parallel``` can also be found indicating that the algorithms are run in parallel. The semantics experiments in the paper used a trained model thatn can be obtained using ```produce_network.py``` or directly in the repository. The results can be plotted using ```plot_results_semantics.py```.
 
 Note that for the DreamCoder experiment in our paper, we did not use the cached evaluation of HeapSearch, this can be reproduced by setting ```use_heap_search_cached_eval``` to ```False``` in ```run_experiment.py```.
