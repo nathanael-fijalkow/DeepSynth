@@ -63,18 +63,16 @@ The full technical details are described in @Fijalkow:2021.
 
 # State of the field
 
-Programming by example has been intensively investigated in the past years both in academia and in industry, in particular thanks to the success of FlashFill in Microsoft Excel (see @Gulwani:2011), allowing users to synthesize spreadsheet programs by giving examples.
+Programming by example has been intensively investigated in the past years both in academia and in industry, spearheaded by the success of FlashFill in Microsoft Excel (see @Gulwani:2011), allowing users to synthesize spreadsheet programs by giving examples.
 FlashFill is now integrated into the larger and more ambitious project PROSE by Microsoft Research (see the [website](https://www.microsoft.com/en-us/research/group/prose/)).
-
 PROSE is a general purpose program synthesis tool (see the [Github repository](https://github.com/microsoft/prose/)).
-It is based on constraint programming: in addition to the DSL, the end-user needs to specify so-called witness functions, which are used for specifying a programming by example instance in an SAT or SMT solver.
+It is based on constraint programming: in addition to the DSL, the end-user needs to specify so-called witness functions, which are used for specifying a programming by example instance in a SAT or SMT solver.
 
 Other tools have emerged recently exploiting the programming by example paradigm, for instance [SmartFill](https://ai.googleblog.com/2014/10/smart-autofill-harnessing-predictive.html) for Google Sheets, and the TF-Coder for [TensorFlow](https://blog.tensorflow.org/2020/08/introducing-tensorflow-coder-tool.html) (see @Shi:2020).
+Unlike PROSE, they are tailored to address a single domain: for SmartFill spreadsheet programs, and for TF-Coder tensorflow programs.
+A number of other prototype tools have been developed in the academic world: DeepCoder was the first leveraging deep learning techniques (see @Balog2017), PC-Coder (see @ZoharW18), and recently the general-purpose DreamCoder (see @EllisWNSMHCST21).
 
-The recent release of the GitHub Copilot [@copilot], powered by the Codex big language model from OpenAI, shows the wide applicability of the program synthesis: Copilot is presented as `your AI pair programmer`, meaning that it assists developers by autocompleting
-pieces of code in an interactive fashion. The key difference is that specifications in Copilot are given in natural language, which may include examples but not only.
-
-
+The recent release of the GitHub Copilot (see @copilot), powered by the Codex big language model from OpenAI, shows the wide applicability of the program synthesis: Copilot is presented as `your AI pair programmer`, meaning that it assists developers by autocompleting pieces of code in an interactive fashion. The key difference is that specifications in Copilot are given in natural language, which may or may not include examples.
 
 # Features
 
