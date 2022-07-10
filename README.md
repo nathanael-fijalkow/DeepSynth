@@ -1,5 +1,6 @@
 # DeepSynth
-DeepSynth is a tool for automatically synthesizing programs from examples. It combines machine learning predictions with efficient enumeration techniques in a very generic way.
+
+DeepSynth is a general-purpose program synthesizer in the programming by example framework: the user provides a few examples as pairs of input and output, DeepSynth finds a program matching the examples.
 
 This is the repository for the code of the paper **"[Scaling Neural Program Synthesis with Distribution-based Search](https://arxiv.org/abs/2110.12485)"**
 published in the conference proceedings of the AAAI Conference on Artificial Intelligence, AAAI'22 and selected for Oral Presentation.
@@ -27,6 +28,8 @@ Nathanaël Fijalkow, Guillaume Lagarde, Théo Matricon, Kevin Ellis, Pierre Ohlm
 <!-- tocstop -->
 
 ## Overview
+
+DeepSynth is a tool for automatically synthesizing programs from examples. It combines machine learning predictions with efficient enumeration techniques in a very generic way.
 
 The following figure shows the pipeline.
 ![Figure](https://github.com/nathanael-fijalkow/DeepSynth/raw/main/main_figure.png)
