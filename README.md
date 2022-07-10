@@ -2,13 +2,14 @@
 General-purpose program synthesizer.
 
 This is the repository for the code of the paper **"[Scaling Neural Program Synthesis with Distribution-based Search](https://arxiv.org/abs/2110.12485)"**
-published in the conference proceedings of the AAAI Conference on Artificial Intelligence, AAAI'22.
+published in the conference proceedings of the AAAI Conference on Artificial Intelligence, AAAI'22 and selected for Oral Presentation.
 
 **Authors**:
 Nathanaël Fijalkow, Guillaume Lagarde, Théo Matricon, Kevin Ellis, Pierre Ohlmann, Akarsh Potta
 
 <!-- toc -->
 
+- [Overview](#overview)
 - [Usage](#usage)
   - [Installation](#installation)
   - [File structure](#file-structure)
@@ -25,20 +26,19 @@ Nathanaël Fijalkow, Guillaume Lagarde, Théo Matricon, Kevin Ellis, Pierre Ohlm
 
 <!-- tocstop -->
 
+## Overview
+
+DeepSynth is a tool for automatically synthesizing programs from examples. It combines machine learning predictions with efficient enumeration techniques in a very generic way.
+
+The following figure shows the pipeline.
 ![Figure](https://github.com/nathanael-fijalkow/DeepSynth/raw/main/main_figure.png)
 
-## Abstract
-
- _We consider the problem of automatically constructing computer programs from input-output examples. We investigate
-how to augment probabilistic and neural program synthesis methods with new search algorithms, proposing a framework called distribution-based search. Within this framework,
-we introduce two new search algorithms: HEAP SEARCH,
-an enumerative method, and SQRT SAMPLING, a probabilistic method. We prove certain optimality guarantees for
-both methods, show how they integrate with probabilistic
-and neural techniques, and demonstrate how they can operate
-at scale across parallel compute environments. Collectively
-these findings offer theoretical and applied studies of search
-algorithms for program synthesis that integrate with recent
-developments in machine-learned program synthesizers._
+- The **first step** is to define a domain-specific language (DSL), which is the programming language specifically designed to solve particular tasks.
+- The **second** step is a compilation step: a context-free grammar (CFG) describing the set of all programs is compiled from the DSL and a number of syntactic constraints. The grammar is used to enumerate programs in an efficient way.
+However the number of programs grows extremely fast with size, making program synthesis very hard computationally.
+***We believe that the path to scalability is to leverage machine learning predictions in combination with efficient enumeration techniques.***
+- The **third** step is to obtain predictions from the examples: a prediction model outputs predictions in the form of probabilities for the rules of the grammar, yielding a probabilistic context-free grammar (PCFG).
+- The **fourth** and final step is the search: enumerating programs from the PCFG. We introduced the distribution-based search as a theoretical framework to analyse algorithms, and constructed two new algorithms: HeapSearch and SQRT Sampling.
 
 ## Usage
 
