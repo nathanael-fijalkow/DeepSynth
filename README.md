@@ -2,6 +2,8 @@
 
 DeepSynth is a general-purpose program synthesizer in the programming by example framework: the user provides a few examples as pairs of input and output, DeepSynth finds a program matching the examples.
 
+See the official [webpage](https://deepsynth.labri.fr/)
+
 This is the repository for the code of the paper **"[Scaling Neural Program Synthesis with Distribution-based Search](https://arxiv.org/abs/2110.12485)"**
 published in the conference proceedings of the AAAI Conference on Artificial Intelligence, AAAI'22 and selected for Oral Presentation.
 
