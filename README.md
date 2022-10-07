@@ -58,9 +58,12 @@ conda activate deep_synth
 # install pip
 yes | conda install pip
 # install this package and the dependencies
+pip install -r requirements.txt
+# or to do it manually
 conda install -c conda-forge cython tqdm numpy matplotlib scipy
 conda install -c pytorch "pytorch>=1.8" 
 pip install git+https://github.com/MaxHalford/vose
+
 # For flashfill dataset
 pip install sexpdata
 # If you want to do the parallel experiments
