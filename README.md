@@ -58,9 +58,12 @@ conda activate deep_synth
 # install pip
 yes | conda install pip
 # install this package and the dependencies
+pip install -r requirements.txt
+# or to do it manually
 conda install -c conda-forge cython tqdm numpy matplotlib scipy
 conda install -c pytorch "pytorch>=1.8" 
 pip install git+https://github.com/MaxHalford/vose
+
 # For flashfill dataset
 pip install sexpdata
 # If you want to do the parallel experiments
@@ -73,7 +76,6 @@ pip install --upgrade numpy
 # To test your installation you can run the following tests:
 python unit_tests_algorithms.py
 python unit_tests_programs.py
-python unit_tests_algorithms.py
 python unit_tests_predictions.py
 # Only if you installed ray
 python unit_tests_parallel.py
@@ -102,7 +104,7 @@ Table of contents:
 
 ### DSL
 
-For the dreamcoder dataset,, we have defined the DSL in ``DSL/deepcoder.py``.
+For the dreamcoder dataset, we have defined the DSL in ``DSL/deepcoder.py``.
 It contains two important objects: ``primitive_types`` and ``semantics``.
 The former is a dictionary mapping the primitives of the DSL to their types while the latter maps the primitives to their semantics, that is a value or function to be used when evaluating the primitive.
 Primitives can be constant such as 0, 1, 2... in the ``list.py`` DSL.
