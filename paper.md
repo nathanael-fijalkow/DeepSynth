@@ -40,7 +40,7 @@ The main purpose was to evaluate and compare different search algorithms and the
 Beyond the publication @Fijalkow:2021, the goal of `DeepSynth` is to serve as a reference implementation of existing neuro-symbolic methods for programming by example.
 Indeed, it includes different options for different parts of the pipeline, focussing on neural predictions and search algorithms.
 
-# How it works?
+# How it works
 
 `DeepSynth` is parameterised by a domain specific language (DSL), which is the programming language chosen for solving a program synthesis task. 
 The user first specifies a DSL by giving a set of primitives together with their types and semantics, as well as semantic and syntactic constraints (such as program depth).
@@ -65,20 +65,20 @@ The full technical details are described in @Fijalkow:2021.
 
 Programming by example has been intensively investigated in the past years both in academia and in industry, spearheaded by the success of FlashFill in Microsoft Excel (see @Gulwani:2011), allowing users to synthesize spreadsheet programs by giving examples.
 FlashFill is now integrated into the larger and more ambitious project PROSE by Microsoft Research (see the [website](https://www.microsoft.com/en-us/research/group/prose/)).
-PROSE is a general purpose program synthesis tool (see the [Github repository](https://github.com/microsoft/prose/)).
+PROSE is a general purpose program synthesis tool (see the [GitHub repository](https://github.com/microsoft/prose/)).
 It is based on constraint programming: in addition to the DSL, the end-user needs to specify so-called witness functions, which are used for specifying a programming by example instance in a SAT or SMT solver.
 
 Other tools have emerged recently exploiting the programming by example paradigm, for instance [SmartFill](https://ai.googleblog.com/2014/10/smart-autofill-harnessing-predictive.html) for Google Sheets, and the TF-Coder for [TensorFlow](https://blog.tensorflow.org/2020/08/introducing-tensorflow-coder-tool.html) (see @Shi:2020).
 Unlike PROSE, they are tailored to address a single domain: for SmartFill spreadsheet programs, and for TF-Coder tensorflow programs.
 A number of other prototype tools have been developed in the academic world: DeepCoder was the first leveraging deep learning techniques (see @Balog2017), PC-Coder (see @ZoharW18), and recently the general-purpose DreamCoder (see @EllisWNSMHCST21).
 
-The recent release of the GitHub Copilot (see @copilot), powered by the Codex big language model from OpenAI, shows the wide applicability of the program synthesis: Copilot is presented as `your AI pair programmer`, meaning that it assists developers by autocompleting pieces of code in an interactive fashion. The key difference is that specifications in Copilot are given in natural language, which may or may not include examples.
+The recent release of the GitHub Copilot (see @copilot), powered by the Codex large language model from OpenAI, shows the wide applicability of the program synthesis: Copilot is presented as `your AI pair programmer`, meaning that it assists developers by autocompleting pieces of code in an interactive fashion. The key difference is that specifications in Copilot are given in natural language, which may or may not include examples.
 
 # Features
 
-The package allows to:
+This package has the following capabilities:
 
-- create a DSL from syntactic constraints and semantics functions;
+- Create a DSL from syntactic constraints and semantics functions;
 - Transform this DSL into a Context Free Grammar (CFG);
 - Transform this CFG into a Probabilistic CFG (PCFG);
 - Sample programs from a PCFG;
