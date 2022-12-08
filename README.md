@@ -7,6 +7,8 @@ See the official [webpage](https://deepsynth.labri.fr/)
 This is the repository for the code of the paper **"[Scaling Neural Program Synthesis with Distribution-based Search](https://arxiv.org/abs/2110.12485)"**
 published in the conference proceedings of the AAAI Conference on Artificial Intelligence, AAAI'22 and selected for Oral Presentation.
 
+The code was published in the **[Journal of Open Source Software](https://doi.org/10.21105/joss.04151)**.
+
 **Authors**:
 Nathanaël Fijalkow, Guillaume Lagarde, Théo Matricon, Kevin Ellis, Pierre Ohlmann, Akarsh Potta
 
