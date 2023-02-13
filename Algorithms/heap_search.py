@@ -38,6 +38,8 @@ class heap_search_object:
 
         # self.succ[S][P] is the successor of P from S
         self.succ = {S: {} for S in self.symbols}
+        # self.pred[S][P] is the hash of the predecessor of P from S
+        self.pred = {S: {} for S in self.symbols}
 
         # self.hash_table_program[S] is the set of hashes of programs
         # ever added to the heap for S
@@ -78,6 +80,20 @@ class heap_search_object:
         for S in reversed(self.rules):
             self.query(S, None)
 
+    def merge_program(self, representative: Program, other: Program) -> None:
+        """
+        Merge other into representative.
+        In other words, other will no longer be generated through heap search
+        """
+        our_hash = hash(other)
+        self.hash_table_global[our_hash] = representative
+        for S in self.G.rules:
+            if our_hash in self.pred[S]:
+                pred_hash = self.pred[S][our_hash]
+                nxt = self.succ[S][our_hash]
+                self.succ[S][pred_hash] = nxt
+                self.pred[S][hash(nxt)] = pred_hash
+
     def generator(self):
         """
         A generator which outputs the next most probable program
@@ -109,6 +125,7 @@ class heap_search_object:
             return  # the heap is empty: there are no successors from S
 
         self.succ[S][hash_program] = succ  # we store the succesor
+        self.pred[S][hash(succ)] = hash_program  # we store the predecessor
 
         # now we need to add all potential successors of succ in heaps[S]
         if isinstance(succ, Function):
