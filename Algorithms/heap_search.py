@@ -55,6 +55,8 @@ class heap_search_object:
         self.max_priority = {}
         self.probabilities = defaultdict(lambda: {})
 
+        self.saved = 0
+
     def merge_program(self, representative: Program, other: Program) -> None:
         """
         Merge other into representative.
@@ -169,8 +171,12 @@ class heap_search_object:
         # now we need to add all potential successors of succ in heaps[S]
         if isinstance(succ, Function):
             F = succ.function
+            tag = 0
+            if hasattr(succ, "tag"):
+                tag = succ.tag
+            self.saved += tag
 
-            for i in range(len(succ.arguments)):
+            for i in range(tag, len(succ.arguments)):
                 # non-terminal symbol used to derive the i-th argument
                 S2 = self.G.rules[S][F][0][i]
                 succ_sub_program = self.query(S2, succ.arguments[i])
@@ -181,6 +187,7 @@ class heap_search_object:
 
                     new_program = Function(F, new_arguments, type_=succ.type)
                     new_program = self.return_unique(new_program)
+                    new_program.tag = i
                     hash_new_program = new_program.hash
 
                     if hash_new_program not in self.hash_table_program[S]:
