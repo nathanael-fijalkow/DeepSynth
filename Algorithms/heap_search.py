@@ -1,12 +1,14 @@
-from collections import deque
+from collections import defaultdict
 from heapq import heappush, heappop
 
 from program import Program, Function, Variable
 from pcfg import PCFG
 
+
 def heap_search(G: PCFG):
     H = heap_search_object(G)
     return H.generator()
+
 
 class heap_search_object:
     def return_unique(self, P):
@@ -49,36 +51,9 @@ class heap_search_object:
         # hashes to programs for all programs ever added to some heap
         self.hash_table_global = {}
 
-        # Initialisation heaps
-
-        ## 0. compute max probability
-        self.G.compute_max_probability()
-
-        ## 1. add P(max(S1),max(S2), ...) to self.heaps[S] for all S -> P(S1, S2, ...)
-        for S in reversed(self.rules):
-            for P in self.rules[S]:
-                args_P, w = self.rules[S][P]
-                program = self.G.max_probability[(S, P)]
-                hash_program = program.hash
-
-                # Remark: the program cannot already be in self.heaps[S]
-                assert hash_program not in self.hash_table_program[S]
-
-                self.hash_table_program[S].add(hash_program)
-
-                # we assume that the programs from max_probability
-                # are represented by the same object
-                self.hash_table_global[hash_program] = program
-
-                # print("adding to the heap", program, program.probability[S])
-                heappush(
-                    self.heaps[S],
-                    (-program.probability[(self.G.hash, S)], program),
-                )
-
-        # 2. call query(S, None) for all non-terminal symbols S, from leaves to root
-        for S in reversed(self.rules):
-            self.query(S, None)
+        self._init = set()
+        self.max_priority = {}
+        self.probabilities = defaultdict(lambda: {})
 
     def merge_program(self, representative: Program, other: Program) -> None:
         """
@@ -103,10 +78,73 @@ class heap_search_object:
             self.current = program
             yield program
 
+    def compute_priority(self, S, new_program) -> float:
+        if new_program in self.probabilities and S in self.probabilities[new_program]:
+            return -self.probabilities[new_program][S]
+        if isinstance(new_program, Function):
+            F = new_program.function
+            # We guarantee that F is a Primitive
+            new_arguments = new_program.arguments
+            args, probability = self.rules[S][F]  # type: ignore
+            for i, arg in enumerate(args):
+                probability *= self.probabilities[new_arguments[i]][arg]
+        else:
+            probability = self.rules[S][new_program][1]  # type: ignore
+        self.probabilities[new_program][S] = probability
+        return -probability
+
+    def __init_non_terminal__(self, S) -> None:
+        if S in self._init:
+            return
+        self._init.add(S)
+        # 1) Compute max probablities
+        best_program = None
+        best_priority = None
+        for P in self.rules[S]:
+            args = self.rules[S][P][0]
+            P_unique = P
+            arguments = []
+            for arg in args:
+                self.__init_non_terminal__(arg)
+                arguments.append(self.max_priority[arg])
+            if len(args) > 0:
+                P_unique = Function(
+                    function=P_unique,
+                    arguments=arguments,
+                )
+            priority = self.compute_priority(S, P_unique)
+            self.max_priority[(S, P)] = P_unique
+            if not best_priority or priority < best_priority:
+                best_program = P_unique
+                best_priority = priority
+        assert best_program
+        self.max_priority[S] = best_program
+
+        # 2) add P(max(S1),max(S2), ...) to self.heaps[S]
+        for P in self.rules[S]:
+            program = self.max_priority[(S, P)]
+            hash_program = hash(program)
+            # Remark: the program cannot already be in self.heaps[S]
+            assert hash_program not in self.hash_table_program[S]
+            self.hash_table_program[S].add(hash_program)
+            # we assume that the programs from max_probability
+            # are represented by the same object
+            self.hash_table_global[hash_program] = program
+            priority = self.compute_priority(S, program)
+            heappush(
+                self.heaps[S],
+                (priority, program),
+            )
+
+        # 3) Do the 1st query
+        self.query(S, None)
+
     def query(self, S, program):
         """
         computing the successor of program from S
         """
+        if S not in self._init:
+            self.__init_non_terminal__(S)
         if program:
             hash_program = program.hash
         else:
@@ -119,7 +157,8 @@ class heap_search_object:
 
         # otherwise the successor is the next element in the heap
         try:
-            _, succ = heappop(self.heaps[S])
+            priority, succ = heappop(self.heaps[S])
+            succ.probability = -priority
             # print("found succ in the heap", S, program, succ)
         except:
             return  # the heap is empty: there are no successors from S
@@ -140,19 +179,14 @@ class heap_search_object:
                     new_arguments = succ.arguments[:]
                     new_arguments[i] = succ_sub_program
 
-                    new_program = Function(
-                        F, new_arguments, type_=succ.type, probability={}
-                    )
+                    new_program = Function(F, new_arguments, type_=succ.type)
                     new_program = self.return_unique(new_program)
                     hash_new_program = new_program.hash
 
                     if hash_new_program not in self.hash_table_program[S]:
                         self.hash_table_program[S].add(hash_new_program)
-                        probability = self.G.rules[S][F][1]
-                        for arg, S3 in zip(new_arguments, self.G.rules[S][F][0]):
-                            probability *= arg.probability[(self.G.hash, S3)]
-                        heappush(self.heaps[S], (-probability, new_program))
-                        new_program.probability[(self.G.hash, S)] = probability
+                        priority = self.compute_priority(S, new_program)
+                        heappush(self.heaps[S], (priority, new_program))
 
         if isinstance(succ, Variable):
             return succ  # if succ is a variable, there is no successor so we stop here
