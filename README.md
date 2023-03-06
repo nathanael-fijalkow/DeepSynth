@@ -103,7 +103,7 @@ Table of contents:
 - [Synthesis](#synthesis)
 - [Creating a model](#model-creation)
 - [Training a model](#model-training)
-- [Prediction from a model](#prediction-from-a-model)
+- [Predictions from a model](#predictions-from-a-model)
 
 ### Creating a DSL
 
@@ -265,7 +265,8 @@ if dataset_name == "dreamcoder":
     cur_dsl, cfg, model = build_dreamcoder_intlist_model()
 elif dataset_name == "deepcoder":
     if type_request is None:
-        _, type_requests = deepcoder_dataset_loader.load_tasks("./deepcoder_dataset/T=3_test.json")
+        _, type_requests = \
+            deepcoder_dataset_loader.load_tasks("./deepcoder_dataset/T=3_test.json")
         cur_dsl, cfg_dict, model = build_deepcoder_generic_model(type_requests)
     else:
         cur_dsl, cfg, model = build_deepcoder_intlist_model()
@@ -284,15 +285,10 @@ else:
     nb_examples_max: int = 5
 ```
 
-### Prediction from a model
+### Predictions from a model
 
 Now we have a model, let us see how to use it to construct a PCFG.
-This is model dependent, but the good news is that the function ``task_set2dataset`` from ``experiment_helper.py`` does it for us:
-
-```python
-task_set2dataset(tasks, model, dsl: DSL) -> List[Tuple[str, PCFG, Callable[[Program, bool], bool]]]
-```
-
+This is model dependent, but the good news is that the function ``task_set2dataset`` from ``experiment_helper.py`` does it for us.
 The arguments are:
 
 - ``tasks`` a list where for each task there is a list of tuples (input, output) which are the examples of the task
