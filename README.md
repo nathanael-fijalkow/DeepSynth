@@ -97,49 +97,60 @@ python unit_tests_parallel.py
 
 Table of contents:
 
-- [DSL](#dsl)
-- [CFG and PCFG](#cfg-and-pcfg)
+- [Creating a DSL](#creating-a-dsl)
+- [Compiling a DSL into a CFG](#compiling-a-dsl-into-a-cfg)
+- [From a CFG to a PCFG](#from-a-cfg-to-a-pcfg)
 - [Synthesis](#synthesis)
+- [Creating a model](#model-creation)
+- [Training a model](#model-training)
 - [Prediction from a model](#prediction-from-a-model)
-- [Model creation](#model-creation)
-- [Model training](#model-training)
 
-### DSL
+### Creating a DSL
 
-For the dreamcoder dataset, we have defined the DSL in ``DSL/deepcoder.py``.
+The folder ``DSL`` contains some Domain-Specific-Languages (DSL), you can use these or create your own.
+The DSL we use for the dreamcoder dataset is based on the DeepCoder paper, it is defined in ``DSL/deepcoder.py``.
 It contains two important objects: ``primitive_types`` and ``semantics``.
-The former is a dictionary mapping the primitives of the DSL to their types while the latter maps the primitives to their semantics, that is a value or function to be used when evaluating the primitive.
-Primitives can be constant such as 0, 1, 2... in the ``list.py`` DSL.
-If they are functions, then Python must be able to apply them one argument at a time, that would give the following semantic for ``+``: ``lambda a: lambda b: a + b``.
+The former (``primitive_types``) is a dictionary mapping the primitive names of the DSL to their types, and the latter (``semantics``) maps the primitive names to their semantics, which are either values or functions to be used when evaluating the primitives.
+Note that a primitive can be simply a constant such as 0, 1, 2 (see the ``list.py`` DSL for an example of that).
 
-There are two more subtleties in this file.
-First, the ``no_repetitions`` is a set of primitives than cannot be repeated such as ``SORT`` because it is useless to sort a sorted list, this reduces a bit the size of the program space.
+Let us first discuss the type system, imported with ``from type_system import *``.
+The atomic types called ``PrimitiveType`` are ``INT`` and ``BOOL``, you can create your own with ``PrimitiveType(type_name)``.
+There are two constructors: ``List`` constructs lists by ``List(type)``, and ``Arrow(a, b)`` represents a function from ``a`` to ``b``. 
+For instance, the type of ``+`` is ``Arrow(INT, Arrow(INT, INT))``. Note that this is different from ``Arrow(Arrow(INT, INT), INT)``.
+We support polymorphic types: ``PolymorphicType(name)``. 
+For example with ``t0 = PolymorphicType("t0"), t1 = PolymorphicType("t1")``, the type ``Arrow(t0, Arrow(t1), t0))`` can be instantiated into ``Arrow(INT, Arrow(INT), INT))`` but not into a ``Arrow(INT, Arrow(INT), BOOL))`` since both ``t0`` must correspond to the same type.
 
-And the second are types. 
-Notice that we used ``Arrow``, ``List``, ``INT``... they come from ``from type_system import *``.
-There are ``PrimitiveType`` such as ``INT``, ``BOOL``, which are in truth nothing but a string, you can create your own with ``PrimitiveType(type_name)``.
-They have no constraints however DeepSynth makes the difference between them.
-Then there is ``List`` which makes up with ``List(type)`` a list of the given type.
-``Arrow(a, b)`` represents a function from ``a`` to ``b``, the type of ``+`` is ``Arrow(INT, Arrow(INT, INT))`` which is different from ``Arrow(Arrow(INT, INT), INT)``: the former maps an int to a function that takes an int and returns an int that is a partial application of ``+`` whereas the latter takes a function mapping an int to an int and return an int.
-And finally there are the ``PolymorphicType(name)``, their usage in a primitive is independent of their use in other primitives.
-If used multiples times in the same type definition then they must be the same types, for example with ``t0 = PolymorphicType("t0")``, ``Arrow(t0, Arrow(PolymorphicType("t1"), t0))``, it can be instantiated into a ``INT -> INT -> INT``, ``INT -> BOOL -> INT`` but not into a ``INT -> INT -> BOOL`` both ``t0`` must correspond to the same type.
+One important point: when defining the semantics of functions, Python must be able to evaluate them one argument at a time: for instance, for addition: ``lambda a: lambda b: a + b``, not ``lambda a,b: a + b``.
 
-### CFG and PCFG
+The optional ``no_repetitions`` is a set of primitives than cannot be repeated such as ``SORT`` (indeed it is useless to sort a sorted list). This reduces the program space.
 
-Now that we have a DSL, we can build a CFG.
-First create a DSL object with what you defined in the previous section
+To create a DSL object we use the following:
 ``dsl = DSL(primitive_types, semantics, no_repetitions)`` (``no_repetitions`` can be ``None``).
-To get a CFG, we need more information.
-First, the ``type_request: Type`` which defines the type of the program you want to generate, for example I would give ``Arrow(INT, Arrow(INT, INT))`` if I wanted to generate the integer multiplication ``x`` function.
-This is the only argument required to call ``dsl.DSL_to_CFG(type_request)`` and get a CFG.
 
-However, take note of the ``max_program_depth: int`` argument which limits the maximum depth of the programs (seen as trees) produced.
-If you use polymorphic types, then take note of the ``upper_bound_type_size: int`` which limits as to how big the polymorphic types can be instanced into.
-The type size is simply the number of objects used in our framework to instantiate the type: a ``PrimitiveType`` is of size 1, a ``List(a)`` has size ``1 + size(a)`` and an ``Arrow(a, b)`` has size ``1 + size(a) + size(b)``.
 
-Now we are almost to a PCFG, we only need to add probabilities to our CFG.
-Just to try there are two easy ways to get a PCFG: the uniform PCFG can be obtained using ``cfg.CFG_to_Uniform_PCFG()`` and a random PCFG with ``cfg.CFG_to_Random_PCFG(alpha=0.7)`` with the bigger the ``alpha`` the closer to ``uniform`` and the lower the closer to completely random.
-Normally, you would get the probabilities with a model but we'll move onto that later.
+### Compiling a DSL into a CFG
+
+We can build a Context-Free Grammar (CFG) from a DSL, using the following:
+``dsl.DSL_to_CFG(type_request, 
+    max_program_depth=4,
+    min_variable_depth=1,
+    upper_bound_type_size=10,
+    n_gram=2)``.
+The only required field is ``type_request``, it defines the type of the program you want to synthesize. 
+For example if the goal is to synthesize the multiplication function that the type request would be ``Arrow(INT, Arrow(INT, INT))``.
+
+The ``max_program_depth: int`` gives an upper bound on the depth of the programs.
+The ``min_variable_depth: int`` gives a lower bound on the depth of all variables in a program.
+The ``upper_bound_type_size: int`` is used when instantitating polymorphic types. The type size is defined as follows: a ``PrimitiveType`` has size 1, a ``List(a)`` has size ``1 + size(a)`` and an ``Arrow(a, b)`` has size ``1 + size(a) + size(b)``.
+The ``n_gram: int`` chooses the granularity of the CFG, meaning how many primitives are used to choose the next primitive. The two expected values are ``1`` and ``2``. 
+
+### From a CFG to a PCFG
+
+To turn a CFG into a Probabilistic CFG (PCFG), we need to add probabilities to derivation rules.
+The expected way to do that is by training a neural network, we'll discuss that later.
+For testing purposes there are two easier ways to get a PCFG: 
+* the uniform PCFG can be obtained using ``cfg.CFG_to_Uniform_PCFG()``
+* a random PCFG with ``cfg.CFG_to_Random_PCFG(alpha=0.7)``. The parameter ``alpha`` serves as temperature: the larger the closer to ``uniform``.
 
 To see some programs generated by the ``PCFG`` you can run the following code:
 
@@ -151,21 +162,8 @@ for program in pcfg.sampling():
 
 ### Synthesis
 
-At this point, we know how to get a ``PCFG`` for our specific ``type_request``, we would like to see if we can already synthesis a correct program.
-We can import the following function from ``run_experiment.py``:
-
-```python
-run_algorithm(is_correct_program: Callable[[Program, bool], bool], pcfg: PCFG, algo_index: int) -> Tuple[Program, float, float, int, float, float]
-```
-
-The first argument is a function that checks if the program is correct, it can be easily created with the help of ``experiment_helper.py`` which provides the following function:
-
-```python
-make_program_checker(dsl: DSL, examples) -> Callable[[Program, bool], bool]
-```
-
-to which you give your DSL and the examples as a list of tuples (input, output) on which your program should be correct.
-For example, let's say I want to synthesise the following function: ``lambda x: lambda y: x - y + 3``, I could give the following examples:
+We can now solve a programming by example task. 
+Let us consider the following: the type request is ``Arrow(INT, Arrow(INT, INT))`` and the set of examples
 
 ```python
 examples = [
@@ -174,9 +172,26 @@ examples = [
     ([0, 2], 1),
 ]
 ```
+A solution program is ``lambda x: lambda y: x - y + 3``, there could be others (more complicated).
 
-The second argument is our ``PCFG`` and the third argument is simply the index of the algorithm to use for the synthesis.
-Here is the mapping:
+Following the above let us assume we have constructed a ``DSL`` and a ``PCFG``. 
+We will use the following function from ``run_experiment.py``:
+
+```python
+run_algorithm(is_correct_program: Callable[[Program, bool], bool], 
+    pcfg: PCFG, 
+    algo_index: int)
+```
+
+Let us explain what are the three arguments:
+* ``is_correct_program`` is a function that checks if the program is correct, it can be easily created with the help of ``experiment_helper.py`` which provides the following function:
+
+```python
+make_program_checker(dsl: DSL, examples) -> Callable[[Program, bool], bool]
+```
+
+* ``pcfg`` is the ``PCFG`` 
+* ``algo_index`` is the index of the algorithm to use for the search. Here is the mapping:
 
 ```python
 0 => Heap Search
@@ -188,16 +203,14 @@ Here is the mapping:
 6 => A*
 ```
 
-They correspond to the indices of algorithms in ``list_algorithms`` in ``run_experiment.py``.
-There are three additional parameters that you may want to change in ``run_experiment.py``:
+We can further tune three parameters in ``run_experiment.py``:
+* ``timeout: int = 100`` is the timeout in seconds before the search is stopped
+* ``total_number_programs: int = 1_000_000`` maximum number of programs enumerated before the search is stopped. On a personal computer this is about 30sec of search for Heap Search.
+* ``use_heap_search_cached_eval = True`` only when using ``Heap Search`` this enables caching of evaluations of partial programs and thus provides a much faster evaluation at the cost of additional memory.
 
-- ``timeout: int = 100`` is the timeout in seconds before the search is stopped
-- ``total_number_programs: int = 1_000_000`` maximum number of programs enumerated before the search is stopped, for example on my personal computer that amounts to around 30sec of search for Heap Search.
-- ``use_heap_search_cached_eval = True`` only when using ``Heap Search`` this enables caching of evaluations of partial programs and thus provides a much faster evaluation at the cost of additional memory.
-
-Now, the ``run_experiment`` returns program, search_time, evaluation_time, nb_programs, cumulative_probability, probability.
-Times are in seconds. Program is None is no solution was found.
-Probability is the probability of the latest program enumerated if no solution was found and the probability of the solution program otherwise.
+Now, the ``run_experiment`` returns a tuple: ``program, search_time, evaluation_time, nb_programs, cumulative_probability, probability``.
+Times are in seconds. Program is ``None`` is no solution was found.
+``probability`` is the probability of the latest program enumerated if no solution was found and the probability of the solution program otherwise.
 
 #### Parallelisation
 
@@ -210,64 +223,14 @@ There is in ``run_experiment.py`` the parallel variant ``run_algorithm_parallel`
 
 The output is the same, except for some metrics which are now in list form which means they are per enumerator or per evaluator.
 
-### Prediction from a model
-
-Let's say you have a model, how to get it to use it to get your PCFGs.
-This is model dependent thankfully a function does it for us.
-In ``experiment_helper.py`` there is the following function:
-
-```python
-task_set2dataset(tasks, model, dsl: DSL) -> List[Tuple[str, PCFG, Callable[[Program, bool], bool]]]
-```
-
-The arguments are:
-
-- ``tasks`` a list where for each task there is a list of tuples (input, output) which are the examples of the task
-- ``model`` is your model
-- ``dsl`` is your DSL
-
-And what you get as an output is for each task you get ``(task_name, PCFG_predicted_by_model, is_correct_program)``.
-Yes it also directly computes the ``is_correct_program`` function for you.
+Up to now we did not use machine learned models. Let us get to the machine learning part.
 
 ### Model Creation
 
-Please refer to ``model_loader.py`` which contains generic functions for the two types of models the int list models and the generic models.
+The file ``model_loader.py`` contains generic functions for the two types of models: int list models and the generic models.
 The former support only one type request while the latter support generic type requests.
-Here is an extract of the file:
 
-```python
-def build_deepcoder_generic_model(types: Set[Type], max_program_depth: int = 4, autoload: bool = True) -> Tuple[dsl.DSL, CFG, BigramsPredictor]:
-    size_max = 19  # maximum number of elements in a list (input or output)
-    nb_arguments_max = 3
-    # all elements of a list must be from lexicon
-    lexicon = [x for x in range(-256, 257)]
-
-    embedding_output_dimension = 10
-    # only useful for RNNEmbedding
-    number_layers_RNN = 1
-    size_hidden = 64
-    deepcoder_dsl = dsl.DSL(deepcoder.semantics, deepcoder.primitive_types, deepcoder.no_repetitions)
-
-    deepcoder_dsl.instantiate_polymorphic_types()
-    cfg_dict = {}
-    for type_req in types:
-        cfg_dict[type_req] = deepcoder_dsl.DSL_to_CFG(type_req,
-                 max_program_depth=max_program_depth)
-    print("Requests:", "\n\t" + "\n\t".join(map(str, cfg_dict.keys())))
-
-    model = __build_generic_model(
-        deepcoder_dsl, cfg_dict, nb_arguments_max, lexicon, size_max, size_hidden, embedding_output_dimension, number_layers_RNN)
-
-    if autoload:
-        weights_file = get_model_name(model) + "_deepcoder.weights"
-        if os.path.exists(weights_file):
-            model.load_state_dict(torch.load(weights_file))
-            print("Loaded weights.")
-
-    return deepcoder_dsl, cfg_dict, model
-```
-
-For the most part, it should be pretty self explanatory.
+For instance, the function ``build_deepcoder_generic_model`` creates a ``BigGramsPredictor``.
 There are a few parameters for our model:
 
 - ``nb_arguments_max`` is the maximum number of arguments a function can have
@@ -278,8 +241,8 @@ There are a few parameters for our model:
 
 ### Model training
 
-The reference here will be the ``produce_network.py`` file.
-Concretely, it loads a model, then generate valid tasks with their solution for the model and train the models on these tasks.
+The reference file is ``produce_network.py``.
+After loading a model, it generates valid tasks with their solution for the model and train the model on these tasks.
 The model is saved at each epoch.
 The part you might want to change according to your needs is:
 
@@ -321,10 +284,30 @@ else:
     nb_examples_max: int = 5
 ```
 
-## Reproducing the experiments
+### Prediction from a model
+
+Now we have a model, let us see how to use it to construct a PCFG.
+This is model dependent, but the good news is that the function ``task_set2dataset`` from ``experiment_helper.py`` does it for us:
+
+```python
+task_set2dataset(tasks, model, dsl: DSL) -> List[Tuple[str, PCFG, Callable[[Program, bool], bool]]]
+```
+
+The arguments are:
+
+- ``tasks`` a list where for each task there is a list of tuples (input, output) which are the examples of the task
+- ``model`` is the model
+- ``dsl`` is the DSL
+
+The output is for each task the tuple ``(task_name, PCFG_predicted_by_model, is_correct_program)``.
+
+## Reproducing the experiments from the AAAI'22 paper
+
+For the experiments, you only need to run the `produce_network.py` file (editing the parameters based on the dataset or the batch size).
+A ```.weights``` file should appear at the root folder.
+This will train a neural network on random generated programs as described in Appendix F in the paper.
 
 All of the files mentioned in this section are located in the root folder and follow this pattern ```run_*_experiments*.py```.
-
 Here is a short summary of each experiment:
 
 - ```run_random_PCFGsearch.py``` produce a list of all programs generated under Xsec of search time by all algorithms.
@@ -332,12 +315,6 @@ Here is a short summary of each experiment:
 - ```run_experiments_<dataset>.py``` try to find solutions using an ANN to predict the grammar and for each algorithm logs the search data for the corresponding ```<dataset>```. The suffix ```parallel``` can also be found indicating that the algorithms are run in parallel. The semantics experiments in the paper used a trained model thatn can be obtained using ```produce_network.py``` or directly in the repository. The results can be plotted using ```plot_results_semantics.py```.
 
 Note that for the DreamCoder experiment in our paper, we did not use the cached evaluation of HeapSearch, this can be reproduced by setting ```use_heap_search_cached_eval``` to ```False``` in ```run_experiment.py```.
-
-### Quick guide to train a neural network
-
-For the experiments, you only need to run the `produce_network.py` file, do not hesitate to change the parameters to suit your needs such as the dataset or the batch size.
-A ```.weights``` file should appear at the root folder.
-This will train a neural network on random generated programs as described in Appendix F in the paper.
 
 ## How to download the DeepCoder dataset
 
