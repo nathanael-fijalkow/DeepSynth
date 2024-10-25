@@ -8,9 +8,9 @@ primitive_types = {
   }
 
 semantics = {
-	'and' : lambda bool1, bool2: bool1 and bool2,
-	'or'  : lambda bool1, bool2: bool1 or bool2,
-	'xor' : lambda bool1, bool2: bool1^bool2,
+	'and' : lambda bool1: lambda bool2: bool1 and bool2,
+	'or'  : lambda bool1: lambda bool2: bool1 or bool2,
+	'xor' : lambda bool1: lambda bool2: bool1^bool2,
 	'not' : lambda bool: not bool
 }
 
